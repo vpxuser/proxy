@@ -1,7 +1,7 @@
-# Mitm-All
+# proxy
 一个致力于实现多协议中间人攻击的工具
 
-- 已实现HTTP、SOCKS5代理协议端口复用
+- 已实现系统级HTTP代理和Proxifier
 - 已实现TCP、HTTP、TLS中间人攻击功能
 
 ## 前言
@@ -69,10 +69,10 @@ frida -U -f [APK包名] -l [脚本文件路径]
 
 ##### 方法一：使用具有透明代理功能的代理应用
 
-- 使用[Mitm-All](https://github.com/vpxuser/Mitm-All)配合透明代理工具强抓TCP流量，如：[Proxifier](https://www.proxifier.com/download/#android-tab)
+- 使用[proxy](https://github.com/vpxuser/proxy)配合透明代理工具强抓TCP流量，如：[Proxifier](https://www.proxifier.com/download/#android-tab)
 
 ```cmd
-.\mitmall.exe
+.\proxy.exe
 ```
 
 ##### 方法二：使用frida动态注入（适合没有内存动态防护的应用）
@@ -98,7 +98,7 @@ frida -U -f [APK包名] -l [脚本文件路径]
 ```cmd
 set GOOS=linux
 set GOARCH=amd64
-go build -o mitmall main.go
+go build -o proxy main.go
 ```
 
 - 编译windows可执行文件
@@ -106,7 +106,7 @@ go build -o mitmall main.go
 ```cmd
 set GOOS=windows
 set GOARCH=amd64
-go build -o mitmall.exe main.go
+go build -o proxy.exe main.go
 ```
 
 - 编译macOS可执行文件
@@ -114,7 +114,7 @@ go build -o mitmall.exe main.go
 ```cmd
 set GOOS=darwin
 set GOARCH=amd64
-go build -o mitmall main.go
+go build -o proxy main.go
 ```
 
 ## 配置
@@ -123,64 +123,34 @@ go build -o mitmall main.go
 
 ```yaml
 log:
-  # 日志颜色开关，默认开启
-  colorSwitch: true
-  # 日志等级，5为开启debug日志，4为普通日志
-  level: 4
-mitm:
-  # socks5服务监听地址，默认监听本地1080端口
-  host: 0.0.0.0:1080
-  # 工具线程数，默认最大
-  threads: 0
-  # 超时设置
-  timeout:
-    # 是否设置连接超时，默认不启用超时设置
-    switch: false
-    # 超时时间，默认60s
-    client: 60s
-    target: 60s
-  # socks5服务的DNS解析开关，默认关闭
-  bound: false
-  # 是否开启TCP中间人攻击的开关，默认开启（注意：关闭后就只是一个单纯的socks5代理服务）
-  switch: true
-  # 打印TCP流到控制台（对于无法识别的协议，即：HTTP、HTTPS之外的协议）
-  dump:
-    # 默认关闭
-    switch: false
-    # 要跟踪打印目标服务的端口（假设目标服务8000端口开放了一个IM服务，可以根据目标服务端口打印TCP流信息）
-    port: 8000
-tls:
-  # 是否开启TLS中间人攻击，默认开启
-  mitmSwitch: true
-  # 是否开启Finished握手消息校验，默认关闭
-  verifyFinished: false
-  # 是否开启TLS记录MAC校验，默认关闭
-  verifyMAC: false
-  # 默认SNI，如果ClientHello没有SNI扩展时，工具会通过默认SNI来获取服务器证书，这里必须配置！！！
-  defaultSNI: okii.com
-http:
-  # HTTP中间人攻击开关，默认开启
-  mitmSwitch: true
-  # HTTP上游代理设置，会把HTTP和HTTPS数据包转发到上游代理服务器，为空则不走代理
-  proxy: http://127.0.0.1:8080
-# DNS服务器设置，用于查询域名对应的CDN IP，并将解析记录存储到缓存，方便后续TLS握手进行IP反查域名获取证书
-dns: 114.114.114.114
+  # 日志级别 5为debug级
+  level: 5
+proxy:
+  # 代理服务监督地址
+  host: 0.0.0.0
+  # http代理监听端口
+  manualPort: 8080
+  # 透明代理监听端口
+  transparentPort: 8081
+  # 线程控制，默认开启1000个线程
+  threads: 1000
+  # 上游代理设置，支持http、sock5、socks5h协议
+  #upstream: http://127.0.0.1:8081
 ca:
-  # CA证书颁发机构的域名，可以通过设置这个来伪造一个CA证书并保存到配置文件夹
-  domain: www.digicert.com
-  # CA证书路径
+  # 代理服务中间人CA证书
   cert: config/ca/ca.crt
-  # CA私钥路径
+  # 代理服务中间人CA私钥
   key: config/ca/ca.key
-db:
-  cache:
-    # sqlite缓存模式debug日志开关
-    logSwitch: false
-  main:
-    # sqlite持久化模式debug日志开关
-    logSwitch: false
-    # sqlite数据库路径
-    path: config/sqlite/main.db
+switch:
+  # http嗅探开关
+  http: true
+  # websocket嗅探开关
+  websocket: true
+  # tcp嗅探开关
+  tcp: true
+tls:
+  # 默认sni，当客户端clienthello没有设置sni时，会使用这个配置下的默认sni进行设置
+  defaultSNI: "*.baidu.com"
 ```
 
 ## 运行
@@ -188,12 +158,12 @@ db:
 - 打开命令行，并进入可执行程序所在目录，运行可执行程序
 
 ```powershell
-.\mitmall.exe
+.\proxy.exe
 ```
 
 ## 代理
 
-- 使用SOCKS5代理客户端配置代理，这里使用Proxifier做演示
+- 使用HTTPS代理客户端配置代理，这里使用Proxifier做演示
 
 ![proxifier配置](./images/1.png)
 
