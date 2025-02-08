@@ -3,7 +3,7 @@ chcp 65001 > nul
 setlocal
 
 REM 构建 Go 程序
-go build -o socks2https.exe main.go
+go build -o proxy.exe main.go
 
 REM 检查 go build 是否成功
 if %errorlevel% neq 0 (
@@ -12,7 +12,7 @@ if %errorlevel% neq 0 (
 )
 
 REM 打包文件和目录
-tar -cvf socks2https.tar config socks2https.exe
+tar -cvf proxy.tar config proxy.exe
 
 REM 检查 tar 命令是否成功
 if %errorlevel% neq 0 (
@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 )
 
 REM 删除可执行文件
-del socks2https.exe
+del proxy.exe
 
 REM 检查删除操作是否成功
 if %errorlevel% neq 0 (
