@@ -177,7 +177,7 @@ tls:
 - 在config.yml文件配置下游代理为BurpSuite代理地址（这里使用BurpSuite默认地址http://127.0.0.1:8080）
 - BurpSuite通过上游代理获取到HTTP报文，抓包成功
 
-![burp抓包](./image/BUrpSuite.png)
+![burp抓包](./image/BurpSuite.png)
 
 ## 其他
 
