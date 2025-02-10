@@ -11,7 +11,7 @@ proxy:
   # 线程控制，默认开启1000个线程
   threads: 1000
   # 上游代理设置，支持http、sock5、socks5h协议
-  #upstream: http://127.0.0.1:8081
+  #upstream: http://127.0.0.1:8080
 ca:
   # 代理服务中间人CA证书
   cert: config/ca/ca.crt

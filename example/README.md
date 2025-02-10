@@ -35,13 +35,19 @@
 .\upload_ca_cert.bat -d [安卓设备ID] -c [证书文件路径]
 ```
 
-##### 方法二：使用面具模块载入（适合真机）
+##### 方法二：使用面具模块MagiskTrustUserCerts（适合真机）
+
+- 使用[MagiskTrustUserCerts](https://github.com/NVISOsecurity/MagiskTrustUserCerts)强制信任用户证书
+
+![](./image/MagiskTrustUserCerts.png)
+
+##### 方法三：使用面具模块MoveCertificate（适合真机）
 
 - 使用[MoveCertificate](https://github.com/ys1231/MoveCertificate)模块将用户证书目录的证书移动到系统证书目录
 
-![](./images/move_certificate.png)
+![](./image/MoveCertificate.png)
 
-##### 方法三：使用frida动态注入（适合没有内存动态防护的应用）
+##### 方法四：使用frida动态注入（适合没有内存动态防护的应用）
 
 - 使用[inject_ca_certificate.js](https://github.com/vpxuser/Awesome-Script/blob/main/inject_ca_certificate.js)脚本将证书注入到安卓APP，脚本运行前，请自行将证书文件名修改为ca.crt或打开脚本修改证书路径
 
@@ -59,11 +65,11 @@ frida -U -f [APK包名] -l [脚本文件路径]
 frida -U -f [APK包名] -l [脚本文件路径]
 ```
 
-##### 方法二：使用面具模块载入（适合真机）
+##### 方法二：使用Lsposed模块JustTrustMe（适合真机）
 
 - 使用[JustTrustMe](https://github.com/Fuzion24/JustTrustMe)模块解除证书锁定
 
-![](./images/just_trust_me.png)
+![](./image/JustTrustMe.png)
 
 #### 使用强制代理
 
@@ -165,13 +171,13 @@ tls:
 
 - 使用HTTPS代理客户端配置代理，这里使用Proxifier做演示
 
-![proxifier配置](./images/1.png)
+![proxifier配置](./image/Proxifier.png)
 
 - 安装抓包工具证书到移动设备或模拟器（注意：需要ROOT权限），这里使用BurpSuite
 - 在config.yml文件配置下游代理为BurpSuite代理地址（这里使用BurpSuite默认地址http://127.0.0.1:8080）
 - BurpSuite通过上游代理获取到HTTP报文，抓包成功
 
-![burp抓包](./images/2.png)
+![burp抓包](./image/BUrpSuite.png)
 
 ## 其他
 
