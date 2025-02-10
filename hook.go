@@ -206,6 +206,24 @@ func (h *HttpProxy) filterWebSocket(frame ws.Frame, reverse bool, ctx *Context) 
 	return frame
 }
 
+type WebSocketMatch func(frame ws.Frame, reverse bool, ctx *Context) bool
+
+func (w WebSocketMatch) Match(frame ws.Frame, reverse bool, ctx *Context) bool {
+	return w(frame, reverse, ctx)
+}
+
+func WebSocketHostIs(hosts ...string) WebSocketMatch {
+	hostSet := make(map[string]struct{})
+	for _, host := range hosts {
+		hostSet[host] = struct{}{}
+	}
+
+	return func(frame ws.Frame, reverse bool, ctx *Context) bool {
+		_, ok := hostSet[ctx.RemoteHost]
+		return ok
+	}
+}
+
 type RawCond interface {
 	Match(raw []byte, reverse bool, ctx *Context) bool
 }

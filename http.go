@@ -23,7 +23,7 @@ func (h *HttpProxy) handleHttp(client net.Conn, ctx *Context) (err error) {
 				return err
 			}
 		} else {
-			errNil := errors.New("request and response is nil")
+			errNil := errors.New("request and response are nil")
 			yaklog.Errorf("%s fliterReq error - %v", ctx.Preffix(), errNil)
 			return errNil
 		}
