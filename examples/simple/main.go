@@ -6,6 +6,8 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/vpxuser/proxy"
 	"github.com/yaklang/yaklang/common/log"
+	"net/http"
+	"net/http/httputil"
 	"os"
 )
 
@@ -45,6 +47,28 @@ func loadPrivateKey(config *proxy.HttpProxy) {
 	}
 
 	config.Key = privateKey
+}
+
+func snifferHTTP(config *proxy.HttpProxy) {
+	config.OnRequest().Do(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
+		reqRaw, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			log.Error(err)
+			return req, nil
+		}
+		log.Debugf("HTTP Request : \n%s", reqRaw)
+		return req, nil
+	})
+
+	config.OnResponse().Do(func(resp *http.Response, ctx *proxy.Context) *http.Response {
+		respRaw, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			log.Error(err)
+			return resp
+		}
+		log.Debugf("HTTP Response : \n%s", respRaw)
+		return resp
+	})
 }
 
 func snifferWebSocket(config *proxy.HttpProxy) {
