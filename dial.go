@@ -54,7 +54,8 @@ func (d *DefaultDialer) Dial(network, addr string) (c net.Conn, err error) {
 	if d.isTLS {
 		return DailTLS(c)
 	}
-	return
+
+	return c, nil
 }
 
 func (d *DefaultDialer) SetTLS(isTLS bool) {

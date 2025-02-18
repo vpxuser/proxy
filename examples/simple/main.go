@@ -12,12 +12,14 @@ import (
 )
 
 func main() {
-	config := proxy.NewHttpProxy()
-	config.Port = "8080"
-	config.Serve(&proxy.Manual{})
-}
+	// init proxy server config
+	httpProxy := proxy.NewHttpProxy()
 
-func loadCert(config *proxy.HttpProxy) {
+	// set proxy server host and port
+	httpProxy.Host = "0.0.0.0"
+	httpProxy.Port = "8080"
+
+	// -----------------------------
 	cert, err := os.ReadFile("config/ca.crt")
 	if err != nil {
 		panic(err)
@@ -30,37 +32,40 @@ func loadCert(config *proxy.HttpProxy) {
 		panic(err)
 	}
 
-	config.Cert = certificate
-}
+	// set mitm ca certificate
+	httpProxy.Cert = certificate
 
-func loadPrivateKey(config *proxy.HttpProxy) {
+	//--------------------------------
 	key, err := os.ReadFile("config/ca.key")
 	if err != nil {
 		panic(err)
 	}
 
-	block, _ := pem.Decode(key)
+	block, _ = pem.Decode(key)
 
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		panic(err)
 	}
 
-	config.Key = privateKey
-}
+	// set mitm ca privatekey
+	httpProxy.Key = privateKey
 
-func snifferHTTP(config *proxy.HttpProxy) {
-	config.OnRequest().Do(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
-		reqRaw, err := httputil.DumpRequest(req, true)
-		if err != nil {
-			log.Error(err)
+	// set http request handler witch conditions
+	httpProxy.OnRequest(proxy.ReqHostIs("www.baidu.com", "www.google.com"),
+		proxy.ReqWildcardIs("*.qq.com", "*.aliyun.com")).
+		Do(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
+			reqRaw, err := httputil.DumpRequest(req, true)
+			if err != nil {
+				log.Error(err)
+				return req, nil
+			}
+			log.Debugf("HTTP Request : \n%s", reqRaw)
 			return req, nil
-		}
-		log.Debugf("HTTP Request : \n%s", reqRaw)
-		return req, nil
-	})
+		})
 
-	config.OnResponse().Do(func(resp *http.Response, ctx *proxy.Context) *http.Response {
+	// set http response handler
+	httpProxy.OnResponse().Do(func(resp *http.Response, ctx *proxy.Context) *http.Response {
 		respRaw, err := httputil.DumpResponse(resp, true)
 		if err != nil {
 			log.Error(err)
@@ -69,18 +74,18 @@ func snifferHTTP(config *proxy.HttpProxy) {
 		log.Debugf("HTTP Response : \n%s", respRaw)
 		return resp
 	})
-}
 
-func snifferWebSocket(config *proxy.HttpProxy) {
-	config.OnWebSocket().Do(func(frame ws.Frame, reverse bool, ctx *proxy.Context) ws.Frame {
+	// set websocket handler
+	httpProxy.OnWebSocket().Do(func(frame ws.Frame, reverse bool, ctx *proxy.Context) ws.Frame {
 		log.Debugf("WebSocket Frame Payload : %s", frame.Payload)
 		return frame
 	})
-}
 
-func snifferTCPRaw(config *proxy.HttpProxy) {
-	config.OnRaw().Do(func(raw []byte, reverse bool, ctx *proxy.Context) []byte {
+	// set tcp raw handler
+	httpProxy.OnRaw().Do(func(raw []byte, reverse bool, ctx *proxy.Context) []byte {
 		log.Debugf("TCP Raw : %s", raw)
 		return raw
 	})
+
+	httpProxy.Serve(&proxy.Manual{})
 }
