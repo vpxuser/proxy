@@ -39,13 +39,13 @@
 
 - 使用[MagiskTrustUserCerts](https://github.com/NVISOsecurity/MagiskTrustUserCerts)强制信任用户证书
 
-![](./image/MagiskTrustUserCerts.png)
+![](image/MagiskTrustUserCerts.png)
 
 ##### 方法三：使用面具模块MoveCertificate（适合真机）
 
 - 使用[MoveCertificate](https://github.com/ys1231/MoveCertificate)模块将用户证书目录的证书移动到系统证书目录
 
-![](./image/MoveCertificate.png)
+![](image/MoveCertificate.png)
 
 ##### 方法四：使用frida动态注入（适合没有内存动态防护的应用）
 
@@ -69,7 +69,7 @@ frida -U -f [APK包名] -l [脚本文件路径]
 
 - 使用[JustTrustMe](https://github.com/Fuzion24/JustTrustMe)模块解除证书锁定
 
-![](./image/JustTrustMe.png)
+![](image/JustTrustMe.png)
 
 #### 使用强制代理
 
@@ -171,13 +171,13 @@ tls:
 
 - 使用HTTPS代理客户端配置代理，这里使用Proxifier做演示
 
-![proxifier配置](./image/Proxifier.png)
+![proxifier配置](image/Proxifier.png)
 
 - 安装抓包工具证书到移动设备或模拟器（注意：需要ROOT权限），这里使用BurpSuite
 - 在config.yml文件配置下游代理为BurpSuite代理地址（这里使用BurpSuite默认地址http://127.0.0.1:8080）
 - BurpSuite通过上游代理获取到HTTP报文，抓包成功
 
-![burp抓包](./image/BurpSuite.png)
+![burp抓包](image/BurpSuite.png)
 
 ## 其他
 

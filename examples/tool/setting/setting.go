@@ -3,11 +3,11 @@ package setting
 import (
 	"crypto/rsa"
 	"crypto/x509"
-	"example/utils"
 	"github.com/kataras/golog"
 	yaklog "github.com/yaklang/yaklang/common/log"
 	"gopkg.in/yaml.v2"
 	"os"
+	"tool/utils"
 )
 
 const CONFIG_PATH = "config/config.yaml"

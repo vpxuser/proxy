@@ -17,10 +17,6 @@ This package supports the following features:
 Make sure your Go environment is correctly set up, then install the package via the following command:
 
 ```shell
-bash
-
-
-复制编辑
 go get github.com/vpxuser/proxy
 ```
 
@@ -31,7 +27,15 @@ Here’s a simple example of how to use the package:
 ### Start HTTP/HTTPS MITM Proxy
 
 ```go
-//todo
+package main
+
+import "github.com/vpxuser/proxy"
+
+func main() {
+	config := proxy.NewHttpProxy()
+	config.Port = "8080"
+	config.Serve(&proxy.Manual{})
+}
 ```
 
 ### Configure TLS Handshake and Certificates
@@ -39,7 +43,37 @@ Here’s a simple example of how to use the package:
 `proxy` supports using custom certificates for TLS MITM. You can provide your own CA certificate and private key:
 
 ```go
-//todo
+func loadCert(config *proxy.HttpProxy) {
+	cert, err := os.ReadFile("config/ca.crt")
+	if err != nil {
+		panic(err)
+	}
+
+	block, _ := pem.Decode(cert)
+
+	certificate, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+
+	config.Cert = certificate
+}
+
+func loadPrivateKey(config *proxy.HttpProxy) {
+	key, err := os.ReadFile("config/ca.key")
+	if err != nil {
+		panic(err)
+	}
+
+	block, _ := pem.Decode(key)
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+
+	config.Key = privateKey
+}
 ```
 
 ### WebSocket MITM Proxy
@@ -47,9 +81,12 @@ Here’s a simple example of how to use the package:
 The package also supports WebSocket protocol MITM. You can easily intercept and modify WebSocket messages.
 
 ```go
-go复制编辑proxy := proxy.NewProxy()
-
-//todo
+func snifferWebSocket(config *proxy.HttpProxy) {
+	config.OnWebSocket().Do(func(frame ws.Frame, reverse bool, ctx *proxy.Context) ws.Frame {
+		log.Debugf("WebSocket Frame Payload : %s", frame.Payload)
+		return frame
+	})
+}
 ```
 
 ### TCP MITM Proxy
@@ -57,14 +94,18 @@ go复制编辑proxy := proxy.NewProxy()
 For TCP traffic, the `proxy` package allows you to intercept and modify any TCP-based protocol traffic.
 
 ```go
-//todo
+func snifferTCPRaw(config *proxy.HttpProxy) {
+	config.OnRaw().Do(func(raw []byte, reverse bool, ctx *proxy.Context) []byte {
+		log.Debugf("TCP Raw : %s", raw)
+		return raw
+	})
+}
 ```
 
 ## Configuration Options
 
-- **Listen Address and Port**: Use `proxy.Listen(address)` to configure the address and port to listen on.
-- **Certificates and Keys**: Use `proxy.SetCertificate(certPath, keyPath)` to configure the certificates for TLS MITM.
-- **Protocol Support**: Enable specific protocols (HTTP, HTTPS, WebSocket, TCP) using methods like `proxy.EnableProtocol(protocol)`.
+- **Listen Address and Port**: Use `proxy.HttpProxy.Port` to configure the address and port to listen on.
+- **Certificates and Keys**: Use `proxy.HttpProxy.Cert` and `proxy.HttpProxy.Key` to configure the certificates and private key for TLS MITM.
 - **Logging**: The package logs events to the console by default, but custom logging can be configured.
 
 ## Man-in-the-Middle Attack Workflow
@@ -81,7 +122,7 @@ This tool works by acting as a middleman between the client and the target serve
 
 If you want to see real-world examples of how to use this package, check out the following projects:
 
-- [MITM Proxy Example](https://github.com/vpxuser/proxy/example)
+- [MITM Proxy Example Tool](https://github.com/vpxuser/proxy/examples/tool)
 
 ## Contributing
 

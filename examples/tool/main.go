@@ -1,10 +1,10 @@
 package main
 
 import (
-	"example/handler"
-	"example/setting"
 	"github.com/vpxuser/proxy"
 	yaklog "github.com/yaklang/yaklang/common/log"
+	"tool/handler"
+	"tool/setting"
 )
 
 func init() {
