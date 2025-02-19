@@ -7,7 +7,7 @@ toolchain go1.22.12
 require (
 	github.com/gobwas/ws v1.4.0
 	github.com/kataras/golog v0.1.12
-	github.com/vpxuser/proxy v1.0.0
+	github.com/vpxuser/proxy v0.1.0
 	github.com/yaklang/yaklang v1.3.3
 	gopkg.in/yaml.v2 v2.4.0
 )

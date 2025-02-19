@@ -62,10 +62,19 @@ func (d *DefaultDialer) SetTLS(isTLS bool) {
 	d.isTLS = isTLS
 }
 
-func FromURL(httpClient *http.Client, rawURL string) (dialer proxy.Dialer, err error) {
-	proxyURL, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, err
+func FromURL(httpClient *http.Client, rawURL any) (dialer proxy.Dialer, err error) {
+	// input URL support type are string , *url.URL
+	var proxyURL *url.URL
+	switch rawURL.(type) {
+	case string:
+		proxyURL, err = url.Parse(rawURL.(string))
+		if err != nil {
+			return nil, err
+		}
+	case *url.URL:
+		proxyURL = rawURL.(*url.URL)
+	default:
+		return nil, fmt.Errorf("unsupported type: %T", rawURL)
 	}
 
 	transport := httpClient.Transport.(*http.Transport)
