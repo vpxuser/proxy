@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+type HandleConn func(conn net.Conn, ctx *Context) net.Conn
+
 type HandleReq func(req *http.Request, ctx *Context) (*http.Request, *http.Response)
 
 type HandleResp func(resp *http.Response, ctx *Context) *http.Response
@@ -29,10 +31,12 @@ type HttpProxy struct {
 	DefaultSNI        string
 	HTTPClient        *http.Client
 	Dialer            proxy.Dialer
+	connHandlers      []HandleConn
 	reqHandlers       []HandleReq
 	respHandlers      []HandleResp
 	webSocketHandlers []HandleWebSocket
 	rawHandlers       []HandleRaw
+	WhiteList         map[string]struct{}
 }
 
 func NewHttpProxy() *HttpProxy {
@@ -114,5 +118,11 @@ func (h *HttpProxy) Serve(mode Mode) {
 
 			_ = mode.HandleConnect(client, h, ctx)
 		}(client)
+	}
+}
+
+func (h *HttpProxy) SetWhiteList(hosts ...string) {
+	for _, host := range hosts {
+		h.WhiteList[host] = struct{}{}
 	}
 }

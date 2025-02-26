@@ -36,6 +36,12 @@ func (m *Manual) HandleConnect(client net.Conn, h *HttpProxy, ctx *Context) (err
 		}
 	}
 
+	if len(h.WhiteList) > 0 {
+		if _, ok := h.WhiteList[ctx.RemoteHost]; !ok {
+			return h.handleTCP(client, ctx)
+		}
+	}
+
 	if ctx.Request.Method == http.MethodConnect {
 		ctx.IsTLS, ctx.Request.URL.Scheme, ctx.Protocol = true, "https", "HTTPS"
 
@@ -107,6 +113,12 @@ func (t *Transparent) HandleConnect(client net.Conn, h *HttpProxy, ctx *Context)
 		} else {
 			yaklog.Errorf("%s split remote host failed - %v", ctx.Preffix(), err)
 			return err
+		}
+	}
+
+	if len(h.WhiteList) > 0 {
+		if _, ok := h.WhiteList[ctx.RemoteHost]; !ok {
+			return h.handleTCP(client, ctx)
 		}
 	}
 

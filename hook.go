@@ -2,9 +2,54 @@ package proxy
 
 import (
 	"github.com/gobwas/ws"
+	"net"
 	"net/http"
 	"strings"
 )
+
+// todo
+type ConnCond interface {
+	MatchConn(conn net.Conn, ctx *Context) bool
+}
+
+type ConnConds struct {
+	httpProxy *HttpProxy
+	conds     []ConnCond
+}
+
+func (h *HttpProxy) OnConnect(conds ...ConnCond) *ConnConds {
+	return &ConnConds{httpProxy: h, conds: conds}
+}
+
+func (c *ConnConds) Do(handle HandleConn) {
+	c.httpProxy.connHandlers = append(c.httpProxy.connHandlers,
+		func(conn net.Conn, ctx *Context) net.Conn {
+			for _, cond := range c.conds {
+				if cond.MatchConn(conn, ctx) {
+					return conn
+				}
+			}
+			return handle(conn, ctx)
+		})
+}
+
+func (h *HttpProxy) filterConn(conn net.Conn, ctx *Context) net.Conn {
+	for _, handle := range h.connHandlers {
+		conn = handle(conn, ctx)
+		if conn != nil {
+			break
+		}
+	}
+	return conn
+}
+
+type ConnMatch func(conn net.Conn, ctx *Context) bool
+
+func (c ConnMatch) Match(conn net.Conn, ctx *Context) bool {
+	return c(conn, ctx)
+}
+
+//todo
 
 type ReqCond interface {
 	MatchReq(req *http.Request, ctx *Context) bool
