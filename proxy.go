@@ -57,6 +57,7 @@ func NewHttpProxy() *HttpProxy {
 				//DisableCompression: false,
 			},
 		},
+		WhiteList: make(map[string]struct{}),
 	}
 }
 
