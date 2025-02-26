@@ -36,6 +36,23 @@ func (m *Manual) HandleConnect(client net.Conn, h *HttpProxy, ctx *Context) (err
 		}
 	}
 
+	if len(h.WhiteList) > 0 {
+		if _, ok := h.WhiteList[ctx.RemoteHost]; !ok {
+			ctx.Response, err = h.HTTPClient.Do(ctx.Request)
+			if err != nil {
+				yaklog.Errorf("%s send http request failed - %v", ctx.Preffix(false), err)
+				return err
+			}
+
+			if err = ctx.Response.Write(client); err != nil {
+				yaklog.Errorf("%s send http response failed - %v", ctx.Preffix(true), err)
+				return err
+			}
+
+			return h.handleTCP(client, ctx)
+		}
+	}
+
 	if ctx.Request.Method == http.MethodConnect {
 		ctx.IsTLS, ctx.Request.URL.Scheme, ctx.Protocol = true, "https", "HTTPS"
 
