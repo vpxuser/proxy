@@ -76,6 +76,7 @@ func (h *HttpProxy) Copy(mode int) *HttpProxy {
 		DefaultSNI: h.DefaultSNI,
 		HTTPClient: h.HTTPClient,
 		Dialer:     h.Dialer,
+		WhiteList:  h.WhiteList,
 	}
 	switch mode {
 	case MODE_ALL:
