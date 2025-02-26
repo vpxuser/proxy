@@ -38,6 +38,8 @@ func (m *Manual) HandleConnect(client net.Conn, h *HttpProxy, ctx *Context) (err
 
 	if len(h.WhiteList) > 0 {
 		if _, ok := h.WhiteList[ctx.RemoteHost]; !ok {
+			ctx.Request.URL.Scheme, ctx.Request.URL.Host, ctx.Request.RequestURI = "http", ctx.Request.Host, ""
+
 			ctx.Response, err = h.HTTPClient.Do(ctx.Request)
 			if err != nil {
 				yaklog.Errorf("%s send http request failed - %v", ctx.Preffix(false), err)
