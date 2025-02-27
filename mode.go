@@ -42,12 +42,12 @@ func (m *Manual) HandleConnect(client net.Conn, h *HttpProxy, ctx *Context) (err
 
 			ctx.Response, err = h.HTTPClient.Do(ctx.Request)
 			if err != nil {
-				yaklog.Errorf("%s send http request failed - %v", ctx.Preffix(false), err)
+				yaklog.Errorf("%s send http request to remote failed - %v", ctx.Preffix(false), err)
 				return err
 			}
 
 			if err = ctx.Response.Write(client); err != nil {
-				yaklog.Errorf("%s send http response failed - %v", ctx.Preffix(true), err)
+				yaklog.Errorf("%s send http response to client failed - %v", ctx.Preffix(true), err)
 				return err
 			}
 
