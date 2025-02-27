@@ -137,7 +137,6 @@ func NewHttpProxy() *HttpProxy {
 				//DisableCompression: false,
 			},
 		},
-		hijackSet: make(map[string]struct{}),
 	}
 }
 
@@ -204,6 +203,7 @@ func (h *HttpProxy) Serve(handleConn ConnectMode) {
 }
 
 func (h *HttpProxy) Hijack(hosts ...string) {
+	h.hijackSet = make(map[string]struct{})
 	for _, host := range hosts {
 		h.hijackSet[host] = struct{}{}
 	}
