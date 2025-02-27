@@ -13,7 +13,8 @@ import (
 	"time"
 )
 
-var PROXY_CA_CERTIFICATE = []byte(`-----BEGIN CERTIFICATE-----
+const (
+	CERTIFICATE = `-----BEGIN CERTIFICATE-----
 MIIDuzCCAqOgAwIBAgIQBbdO7vYmnqfQFuurcuTtdDANBgkqhkiG9w0BAQsFADB2
 MQswCQYDVQQGEwJVUzENMAsGA1UECBMEVXRhaDENMAsGA1UEBxMETGVoaTEXMBUG
 A1UEChMORGlnaUNlcnQsIEluYy4xGTAXBgNVBAMTEHd3dy5kaWdpY2VydC5jb20x
@@ -34,9 +35,8 @@ L1kWCW1TL+6VaMdlQYBGwZz1/3hhuTyKICLOFpX7/p0ZBbU/apPjSSkkVlvbFNC7
 a2roHGw1tMVjiuMsA3iLzPJYkIWJafpKS/z3Il5bYie1etMr7kXjrMI30zZLgPlT
 /ac3eihnWejzjcDQHqAzM6XM/sVGGYuvrW448y+mOlz/NjadzbIVv8j+aKyeHiWT
 k/BIYu/7Qf2giuBoMox+ynJk6zTUSYNu6dyh1C7gLzCdRpn8vkFp+q7VIn7WUdU=
------END CERTIFICATE-----`)
-
-var PROXY_CA_PRIVATE_KEY = []byte(`-----BEGIN RSA PRIVATE KEY-----
+-----END CERTIFICATE-----`
+	PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAt7+4AMVcG3L2J2VetGobBLqVgUOitr81Y2JNo9HQYjWMe6WV
 aB2p/4YFaIx9VojgmnQQiHPjUdJQt4nNNhRUtiB3dgedyCL80vH2Q/rDK/viEZdK
 1KHdW5IXsH7ZwFJ/2QYW8ynw58Q+JEMjXTjFMGsonskzF0/GmXVYUow1TJ9LEEph
@@ -62,7 +62,38 @@ QKMw0483+CRoZMhaaL39cBnLtrtO7DvCJnwIu4y+hhMhKRzbn1Xj404VPLBjgmBh
 EkwA6QKBgQCEtsnHrEeXeUtSntv1z647yIyMQguNIBDlk1YA+3KfN0tVuC1S7XHU
 bPeSbqF3/C1h9KWfeZmSFrvRkS+T+HG+Sv1H1FgHqXnhCCNbR/e/T6Y1E49xVvDc
 xbnsbTengZU5A1W3txFmgIQh508WFV1QqObyKLgNf1LRURrLFnGiuA==
------END RSA PRIVATE KEY-----`)
+-----END RSA PRIVATE KEY-----`
+)
+
+var (
+	CA_CERTIFICATE *x509.Certificate
+	CA_PRIVATE_KEY *rsa.PrivateKey
+)
+
+func init() {
+	block, _ := pem.Decode([]byte(CERTIFICATE))
+	if block == nil {
+		yaklog.Error("decode proxy ca_certificate failed")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		yaklog.Errorf("parse proxy ca_certificate failed - %v", err)
+	} else {
+		CA_CERTIFICATE = cert
+	}
+
+	block, _ = pem.Decode([]byte(PRIVATE_KEY))
+	if block == nil {
+		yaklog.Error("decode proxy ca_private_key failed")
+	}
+
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		yaklog.Errorf("parse proxy ca_certificate failed - %v", err)
+	} else {
+		CA_PRIVATE_KEY = key
+	}
+}
 
 type HandleConn func(conn net.Conn, ctx *Context) net.Conn
 
@@ -92,18 +123,12 @@ type HttpProxy struct {
 }
 
 func NewHttpProxy() *HttpProxy {
-	block, _ := pem.Decode(PROXY_CA_CERTIFICATE)
-	cert, _ := x509.ParseCertificate(block.Bytes)
-
-	block, _ = pem.Decode(PROXY_CA_PRIVATE_KEY)
-	key, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
-
 	return &HttpProxy{
 		Host:    "0.0.0.0",
 		Port:    "1080",
 		Threads: 100,
-		Cert:    cert,
-		Key:     key,
+		Cert:    CA_CERTIFICATE,
+		Key:     CA_PRIVATE_KEY,
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
