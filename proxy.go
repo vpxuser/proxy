@@ -110,13 +110,11 @@ type HttpProxy struct {
 	DefaultSNI        string
 	HTTPClient        *http.Client
 	Dialer            proxy.Dialer
-	direct            HandleConn
-	hijack            HandleConn
 	reqHandlers       []HandleReq
 	respHandlers      []HandleResp
 	webSocketHandlers []HandleWebSocket
 	rawHandlers       []HandleRaw
-	WhiteList         map[string]struct{}
+	hijackSet         map[string]struct{}
 }
 
 func NewHttpProxy() *HttpProxy {
@@ -139,8 +137,7 @@ func NewHttpProxy() *HttpProxy {
 				//DisableCompression: false,
 			},
 		},
-		direct:    Direct,
-		WhiteList: make(map[string]struct{}),
+		hijackSet: make(map[string]struct{}),
 	}
 }
 
@@ -159,7 +156,7 @@ func (h *HttpProxy) Copy(mode int) *HttpProxy {
 		DefaultSNI: h.DefaultSNI,
 		HTTPClient: h.HTTPClient,
 		Dialer:     h.Dialer,
-		WhiteList:  h.WhiteList,
+		hijackSet:  h.hijackSet,
 	}
 	switch mode {
 	case MODE_ALL:
@@ -172,7 +169,7 @@ func (h *HttpProxy) Copy(mode int) *HttpProxy {
 	return httpProxy
 }
 
-func (h *HttpProxy) Serve(mode Mode) {
+func (h *HttpProxy) Serve(handleConn ConnectMode) {
 	httpProxy, err := net.Listen("tcp", h.Host+":"+h.Port)
 	if err != nil {
 		yaklog.Fatalf("listen %s failed", h.Host+":"+h.Port)
@@ -201,13 +198,13 @@ func (h *HttpProxy) Serve(mode Mode) {
 				<-threads
 			}()
 
-			_ = mode.HandleConnect(client, h, ctx)
+			handleConn(client, h, ctx)
 		}(client)
 	}
 }
 
-func (h *HttpProxy) SetWhiteList(hosts ...string) {
+func (h *HttpProxy) Hijack(hosts ...string) {
 	for _, host := range hosts {
-		h.WhiteList[host] = struct{}{}
+		h.hijackSet[host] = struct{}{}
 	}
 }
