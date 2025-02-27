@@ -13,8 +13,9 @@ import (
 	"time"
 )
 
-const (
-	CERTIFICATE = `-----BEGIN CERTIFICATE-----
+var CA_CERTIFICATE *x509.Certificate
+
+const CERTIFICATE = `-----BEGIN CERTIFICATE-----
 MIIDuzCCAqOgAwIBAgIQBbdO7vYmnqfQFuurcuTtdDANBgkqhkiG9w0BAQsFADB2
 MQswCQYDVQQGEwJVUzENMAsGA1UECBMEVXRhaDENMAsGA1UEBxMETGVoaTEXMBUG
 A1UEChMORGlnaUNlcnQsIEluYy4xGTAXBgNVBAMTEHd3dy5kaWdpY2VydC5jb20x
@@ -36,7 +37,10 @@ a2roHGw1tMVjiuMsA3iLzPJYkIWJafpKS/z3Il5bYie1etMr7kXjrMI30zZLgPlT
 /ac3eihnWejzjcDQHqAzM6XM/sVGGYuvrW448y+mOlz/NjadzbIVv8j+aKyeHiWT
 k/BIYu/7Qf2giuBoMox+ynJk6zTUSYNu6dyh1C7gLzCdRpn8vkFp+q7VIn7WUdU=
 -----END CERTIFICATE-----`
-	PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
+
+var CA_PRIVATE_KEY *rsa.PrivateKey
+
+const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAt7+4AMVcG3L2J2VetGobBLqVgUOitr81Y2JNo9HQYjWMe6WV
 aB2p/4YFaIx9VojgmnQQiHPjUdJQt4nNNhRUtiB3dgedyCL80vH2Q/rDK/viEZdK
 1KHdW5IXsH7ZwFJ/2QYW8ynw58Q+JEMjXTjFMGsonskzF0/GmXVYUow1TJ9LEEph
@@ -63,12 +67,6 @@ EkwA6QKBgQCEtsnHrEeXeUtSntv1z647yIyMQguNIBDlk1YA+3KfN0tVuC1S7XHU
 bPeSbqF3/C1h9KWfeZmSFrvRkS+T+HG+Sv1H1FgHqXnhCCNbR/e/T6Y1E49xVvDc
 xbnsbTengZU5A1W3txFmgIQh508WFV1QqObyKLgNf1LRURrLFnGiuA==
 -----END RSA PRIVATE KEY-----`
-)
-
-var (
-	CA_CERTIFICATE *x509.Certificate
-	CA_PRIVATE_KEY *rsa.PrivateKey
-)
 
 func init() {
 	block, _ := pem.Decode([]byte(CERTIFICATE))
@@ -95,8 +93,6 @@ func init() {
 	}
 }
 
-type HandleConn func(conn net.Conn, ctx *Context) net.Conn
-
 type HandleReq func(req *http.Request, ctx *Context) (*http.Request, *http.Response)
 
 type HandleResp func(resp *http.Response, ctx *Context) *http.Response
@@ -114,7 +110,8 @@ type HttpProxy struct {
 	DefaultSNI        string
 	HTTPClient        *http.Client
 	Dialer            proxy.Dialer
-	connHandlers      []HandleConn
+	direct            HandleConn
+	hijack            HandleConn
 	reqHandlers       []HandleReq
 	respHandlers      []HandleResp
 	webSocketHandlers []HandleWebSocket
@@ -142,6 +139,7 @@ func NewHttpProxy() *HttpProxy {
 				//DisableCompression: false,
 			},
 		},
+		direct:    Direct,
 		WhiteList: make(map[string]struct{}),
 	}
 }
