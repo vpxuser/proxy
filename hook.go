@@ -174,6 +174,16 @@ func (h *HttpProxy) filterResp(resp *http.Response, ctx *Context) *http.Response
 	return resp
 }
 
+type RespMatch func(resp *http.Response, ctx *Context) bool
+
+func (r RespMatch) MatchReq(req *http.Request, ctx *Context) bool {
+	return r(ctx.Response, ctx)
+}
+
+func (r RespMatch) MatchResp(resp *http.Response, ctx *Context) bool {
+	return r(resp, ctx)
+}
+
 type WebSocketCond interface {
 	Match(frame ws.Frame, reverse bool, ctx *Context) bool
 }
