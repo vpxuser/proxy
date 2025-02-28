@@ -2,9 +2,7 @@ package proxy
 
 import (
 	"bufio"
-	"crypto/rsa"
 	"crypto/tls"
-	"github.com/elazarl/goproxy"
 	"github.com/inconshreveable/go-vhost"
 	yaklog "github.com/yaklang/yaklang/common/log"
 	"net"
@@ -82,7 +80,7 @@ var Manual ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) {
 			return
 		}
 
-		tlsConfig, err := genTLSConfig(h.Cert.Raw, h.Key, ctx.RemoteHost)
+		tlsConfig, err := h.GetTLSConfig(ctx.RemoteHost)
 		if err != nil {
 			yaklog.Errorf("%s generate tls config failed - %v", ctx.Preffix(), err)
 			return
@@ -102,26 +100,6 @@ var Manual ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) {
 	} else {
 		_ = h.handleHttp(client, ctx)
 	}
-}
-
-func genTLSConfig(cert []byte, key *rsa.PrivateKey, serverName string) (*tls.Config, error) {
-	subConf := goproxy.NewProxyHttpServer()
-	//proxyConf.Tr.DisableCompression = true
-
-	tlsConfig, err := goproxy.TLSConfigFromCA(&tls.Certificate{
-		Certificate: [][]byte{cert},
-		PrivateKey:  key,
-	})(serverName, &goproxy.ProxyCtx{
-		Proxy: subConf,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig.InsecureSkipVerify = true
-
-	return tlsConfig, nil
 }
 
 var HttpMethod = map[string]struct{}{
@@ -214,7 +192,7 @@ var Transparent ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) 
 
 		ctx.ServName = servName
 
-		tlsConfig, err := genTLSConfig(h.Cert.Raw, h.Key, ctx.RemoteHost)
+		tlsConfig, err := h.GetTLSConfig(ctx.RemoteHost)
 		if err != nil {
 			yaklog.Errorf("%s generate tls config failed - %v", ctx.Preffix(), err)
 			return

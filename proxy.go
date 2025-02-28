@@ -102,11 +102,12 @@ type HandleWebSocket func(frame ws.Frame, reverse bool, ctx *Context) ws.Frame
 type HandleRaw func(raw []byte, reverse bool, ctx *Context) []byte
 
 type HttpProxy struct {
-	Host              string
-	Port              string
-	Threads           int
-	Cert              *x509.Certificate
-	Key               *rsa.PrivateKey
+	Host    string
+	Port    string
+	Threads int
+	//Cert              *x509.Certificate
+	//Key               *rsa.PrivateKey
+	GetTLSConfig      GenTLSConfig
 	DefaultSNI        string
 	HTTPClient        *http.Client
 	Dialer            proxy.Dialer
@@ -122,8 +123,9 @@ func NewHttpProxy() *HttpProxy {
 		Host:    "0.0.0.0",
 		Port:    "1080",
 		Threads: 100,
-		Cert:    CA_CERTIFICATE,
-		Key:     CA_PRIVATE_KEY,
+		//Cert:         CA_CERTIFICATE,
+		//Key:          CA_PRIVATE_KEY,
+		GetTLSConfig: TLSConfigFormCA(CA_CERTIFICATE, CA_PRIVATE_KEY),
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{
@@ -147,11 +149,11 @@ const (
 
 func (h *HttpProxy) Copy(mode int) *HttpProxy {
 	httpProxy := &HttpProxy{
-		Host:       h.Host,
-		Port:       h.Port,
-		Threads:    h.Threads,
-		Cert:       h.Cert,
-		Key:        h.Key,
+		Host:    h.Host,
+		Port:    h.Port,
+		Threads: h.Threads,
+		//Cert:       h.Cert,
+		//Key:        h.Key,
 		DefaultSNI: h.DefaultSNI,
 		HTTPClient: h.HTTPClient,
 		Dialer:     h.Dialer,
