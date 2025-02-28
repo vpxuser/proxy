@@ -102,11 +102,9 @@ type HandleWebSocket func(frame ws.Frame, reverse bool, ctx *Context) ws.Frame
 type HandleRaw func(raw []byte, reverse bool, ctx *Context) []byte
 
 type HttpProxy struct {
-	Host    string
-	Port    string
-	Threads int
-	//Cert              *x509.Certificate
-	//Key               *rsa.PrivateKey
+	Host              string
+	Port              string
+	Threads           int
 	GetTLSConfig      GenTLSConfig
 	DefaultSNI        string
 	HTTPClient        *http.Client
@@ -120,11 +118,9 @@ type HttpProxy struct {
 
 func NewHttpProxy() *HttpProxy {
 	return &HttpProxy{
-		Host:    "0.0.0.0",
-		Port:    "1080",
-		Threads: 100,
-		//Cert:         CA_CERTIFICATE,
-		//Key:          CA_PRIVATE_KEY,
+		Host:         "0.0.0.0",
+		Port:         "1080",
+		Threads:      100,
 		GetTLSConfig: TLSConfigFormCA(CA_CERTIFICATE, CA_PRIVATE_KEY),
 		HTTPClient: &http.Client{
 			Transport: &http.Transport{
@@ -149,15 +145,14 @@ const (
 
 func (h *HttpProxy) Copy(mode int) *HttpProxy {
 	httpProxy := &HttpProxy{
-		Host:    h.Host,
-		Port:    h.Port,
-		Threads: h.Threads,
-		//Cert:       h.Cert,
-		//Key:        h.Key,
-		DefaultSNI: h.DefaultSNI,
-		HTTPClient: h.HTTPClient,
-		Dialer:     h.Dialer,
-		hijackSet:  h.hijackSet,
+		Host:         h.Host,
+		Port:         h.Port,
+		Threads:      h.Threads,
+		GetTLSConfig: h.GetTLSConfig,
+		DefaultSNI:   h.DefaultSNI,
+		HTTPClient:   h.HTTPClient,
+		Dialer:       h.Dialer,
+		hijackSet:    h.hijackSet,
 	}
 	switch mode {
 	case MODE_ALL:
