@@ -19,17 +19,24 @@ const (
 func (h *HttpProxy) direct(connectMode int, client net.Conn, ctx *Context) {
 	switch connectMode {
 	case ConnectModeManual:
-		ctx.Request.URL.Scheme, ctx.Request.URL.Host, ctx.Request.RequestURI = "http", ctx.Request.Host, ""
+		if ctx.Request.Method == http.MethodConnect {
+			if _, err := client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n")); err != nil {
+				yaklog.Errorf("%s write http response failed - %v", ctx.Preffix(), err)
+				return
+			}
+		} else {
+			ctx.Request.URL.Scheme, ctx.Request.URL.Host, ctx.Request.RequestURI = "http", ctx.Request.Host, ""
 
-		resp, err := h.HTTPClient.Do(ctx.Request)
-		if err != nil {
-			yaklog.Errorf("%s send http request to remote failed - %v", ctx.Preffix(false), err)
-			return
-		}
+			resp, err := h.HTTPClient.Do(ctx.Request)
+			if err != nil {
+				yaklog.Errorf("%s send http request to remote failed - %v", ctx.Preffix(false), err)
+				return
+			}
 
-		if err = resp.Write(client); err != nil {
-			yaklog.Errorf("%s send http response to client failed - %v", ctx.Preffix(true), err)
-			return
+			if err = resp.Write(client); err != nil {
+				yaklog.Errorf("%s send http response to client failed - %v", ctx.Preffix(true), err)
+				return
+			}
 		}
 	}
 
