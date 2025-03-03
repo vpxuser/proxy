@@ -34,9 +34,6 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 			return nil, err
 		}
 
-		notBefore := time.Now()
-		notAfter := notBefore.Add(3 * 24 * time.Hour)
-
 		serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 		if err != nil {
 			return nil, err
@@ -45,13 +42,15 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 		template := x509.Certificate{
 			SerialNumber: serialNumber,
 			Subject: pkix.Name{
-				Organization: []string{"Proxy MITM Organization"},
+				Organization: []string{"Self-Signed Inc"},
 			},
-			NotBefore:             notBefore,
-			NotAfter:              notAfter,
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().Add(3 * 24 * time.Hour),
 			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 			BasicConstraintsValid: true,
+			IsCA:                  true,
+			DNSNames:              []string{serverName},
 		}
 
 		certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
