@@ -42,7 +42,7 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 		template := x509.Certificate{
 			SerialNumber: serialNumber,
 			Subject: pkix.Name{
-				Organization: []string{"Self-Signed Inc"},
+				CommonName: serverName,
 			},
 			NotBefore:             time.Now(),
 			NotAfter:              time.Now().Add(3 * 24 * time.Hour),
