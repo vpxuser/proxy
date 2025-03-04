@@ -131,7 +131,7 @@ var Transparent ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) 
 	ctx.RemoteHost, ctx.RemotePort, err = net.SplitHostPort(req.Host)
 	if err != nil {
 		if strings.Contains(err.Error(), "missing port in address") {
-			ctx.RemoteHost, ctx.RemotePort = ctx.Request.Host, "80"
+			ctx.RemoteHost, ctx.RemotePort = req.Host, "80"
 		} else {
 			yaklog.Errorf("%s split remote host failed - %v", ctx.Preffix(), err)
 			return
