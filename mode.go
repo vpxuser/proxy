@@ -263,6 +263,17 @@ func SelectMitmManual(hosts ...string) ConnectMode {
 			}
 		}
 
+		resp, err := h.HTTPClient.Do(req)
+		if err != nil {
+			yaklog.Errorf("%s read response form remote failed - %v", ctx.Preffix(), err)
+			return
+		}
+
+		if err = resp.Write(client); err != nil {
+			yaklog.Errorf("%s write response to client failed - %v", ctx.Preffix(), err)
+			return
+		}
+
 		_ = h.handleTCP(client, ctx)
 	}
 }

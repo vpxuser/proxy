@@ -113,7 +113,6 @@ type HttpProxy struct {
 	respHandlers      []HandleResp
 	webSocketHandlers []HandleWebSocket
 	rawHandlers       []HandleRaw
-	hijackSet         map[string]struct{}
 }
 
 func NewHttpProxy() *HttpProxy {
@@ -152,7 +151,6 @@ func (h *HttpProxy) Copy(mode int) *HttpProxy {
 		DefaultSNI:   h.DefaultSNI,
 		HTTPClient:   h.HTTPClient,
 		Dialer:       h.Dialer,
-		hijackSet:    h.hijackSet,
 	}
 	switch mode {
 	case MODE_ALL:
@@ -196,12 +194,5 @@ func (h *HttpProxy) Serve(handleConn ConnectMode) {
 
 			handleConn(client, h, ctx)
 		}(client)
-	}
-}
-
-func (h *HttpProxy) Hijack(hosts ...string) {
-	h.hijackSet = make(map[string]struct{})
-	for _, host := range hosts {
-		h.hijackSet[host] = struct{}{}
 	}
 }
