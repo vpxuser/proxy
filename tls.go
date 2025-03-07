@@ -74,7 +74,7 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 	}
 }
 
-func TLSConfigFrom(cert *x509.Certificate, key *rsa.PrivateKey) GenTLSConfig {
+func TLSConfigFrom(cert *x509.Certificate, key any) GenTLSConfig {
 	return func(serverName string) (*tls.Config, error) {
 		return &tls.Config{
 			Certificates: []tls.Certificate{

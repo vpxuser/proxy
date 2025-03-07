@@ -10,38 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	ConnectModeManual = iota
-	ConnectModeTransparent
-)
-
-func (h *HttpProxy) direct(connectMode int, client net.Conn, ctx *Context) {
-	switch connectMode {
-	case ConnectModeManual:
-		if ctx.Request.Method == http.MethodConnect {
-			if _, err := client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n")); err != nil {
-				yaklog.Errorf("%s write http response failed - %v", ctx.Preffix(), err)
-				return
-			}
-		} else {
-			ctx.Request.URL.Scheme, ctx.Request.URL.Host, ctx.Request.RequestURI = "http", ctx.Request.Host, ""
-
-			resp, err := h.HTTPClient.Do(ctx.Request)
-			if err != nil {
-				yaklog.Errorf("%s send http request to remote failed - %v", ctx.Preffix(false), err)
-				return
-			}
-
-			if err = resp.Write(client); err != nil {
-				yaklog.Errorf("%s send http response to client failed - %v", ctx.Preffix(true), err)
-				return
-			}
-		}
-	}
-
-	_ = h.handleTCP(client, ctx)
-}
-
 type ConnectMode func(client net.Conn, h *HttpProxy, ctx *Context)
 
 var Manual ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) {
@@ -64,13 +32,6 @@ var Manual ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) {
 	}
 
 	ctx.Request = req
-
-	if len(h.hijackSet) > 0 {
-		if _, ok := h.hijackSet[ctx.RemoteHost]; !ok {
-			h.direct(ConnectModeManual, client, ctx)
-			return
-		}
-	}
 
 	if ctx.Request.Method == http.MethodConnect {
 		ctx.IsTLS, ctx.Request.URL.Scheme, ctx.Protocol = true, "https", "HTTPS"
@@ -139,13 +100,6 @@ var Transparent ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) 
 	}
 
 	ctx.Request = req
-
-	if len(h.hijackSet) > 0 {
-		if _, ok := h.hijackSet[ctx.RemoteHost]; !ok {
-			h.direct(ConnectModeTransparent, client, ctx)
-			return
-		}
-	}
 
 	remoteIp := ctx.RemoteHost
 
@@ -243,5 +197,72 @@ var Transparent ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) 
 	} else {
 		ctx.RemoteHost = remoteIp
 		_ = h.handleTCP(ioClient, ctx)
+	}
+}
+
+func SelectMitmManual(hosts ...string) ConnectMode {
+	hostSet := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		hostSet[host] = struct{}{}
+	}
+
+	return func(client net.Conn, h *HttpProxy, ctx *Context) {
+		req, err := http.ReadRequest(bufio.NewReader(client))
+		if err != nil {
+			yaklog.Errorf("%s read http request failed - %v", ctx.Preffix(), err)
+			return
+		}
+
+		req.URL.Scheme, ctx.Protocol = "http", "HTTP"
+
+		ctx.RemoteHost, ctx.RemotePort, err = net.SplitHostPort(req.Host)
+		if err != nil {
+			if strings.Contains(err.Error(), "missing port in address") {
+				ctx.RemoteHost, ctx.RemotePort = req.Host, "80"
+			} else {
+				yaklog.Errorf("%s split remote host failed - %v", ctx.Preffix(), err)
+				return
+			}
+		}
+
+		ctx.Request = req
+
+		if ctx.Request.Method == http.MethodConnect {
+			ctx.IsTLS, ctx.Request.URL.Scheme, ctx.Protocol = true, "https", "HTTPS"
+
+			if _, err = client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n")); err != nil {
+				yaklog.Errorf("%s write http response failed - %v", ctx.Preffix(), err)
+				return
+			}
+
+			if _, ok := hostSet[ctx.RemoteHost]; !ok {
+				_ = h.handleTCP(client, ctx)
+				return
+			}
+
+			tlsConfig, err := h.GetTLSConfig(ctx.RemoteHost)
+			if err != nil {
+				yaklog.Errorf("%s generate tls config failed - %v", ctx.Preffix(), err)
+				return
+			}
+
+			client = tls.Server(client, tlsConfig)
+
+			ctx.Request, err = http.ReadRequest(bufio.NewReader(client))
+			if err != nil {
+				yaklog.Errorf("%s read https request failed - %v", ctx.Preffix(), err)
+				return
+			}
+		}
+
+		if _, ok := hostSet[ctx.RemoteHost]; ok {
+			if ctx.Request.Header.Get("Upgrade") == "websocket" {
+				_ = h.handleWebSocket(client, ctx)
+			} else {
+				_ = h.handleHttp(client, ctx)
+			}
+		}
+
+		_ = h.handleTCP(client, ctx)
 	}
 }
