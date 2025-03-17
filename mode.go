@@ -261,6 +261,7 @@ func SelectMitmManual(hosts ...string) ConnectMode {
 			} else {
 				_ = h.handleHttp(client, ctx)
 			}
+			return
 		}
 
 		resp, err := h.HTTPClient.Do(req)
