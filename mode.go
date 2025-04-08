@@ -213,7 +213,7 @@ func SelectMitmManual(hosts ...string) ConnectMode {
 			return
 		}
 
-		req.URL.Scheme, ctx.Protocol = "http", "HTTP"
+		req.URL.Scheme, req.RequestURI, ctx.Protocol = "http", "", "HTTP"
 
 		ctx.RemoteHost, ctx.RemotePort, err = net.SplitHostPort(req.Host)
 		if err != nil {
