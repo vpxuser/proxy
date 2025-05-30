@@ -4,6 +4,7 @@ import (
 	"errors"
 	yaklog "github.com/yaklang/yaklang/common/log"
 	"net"
+	"net/http"
 )
 
 func (h *HttpProxy) handleHttp(client net.Conn, ctx *Context) (err error) {
@@ -36,4 +37,42 @@ func (h *HttpProxy) handleHttp(client net.Conn, ctx *Context) (err error) {
 	}
 
 	return nil
+}
+
+func (h *HttpProxy) handleHTTP(req *http.Request, tls bool, client net.Conn, ctx *Context) {
+	req.URL.Scheme = "http"
+	if tls {
+		req.URL.Scheme = "https"
+	}
+
+	req.URL.Host, req.RequestURI = req.Host, ""
+
+	req, resp := h.filterReq(req, ctx)
+
+	if resp != nil {
+		if err := resp.Write(client); err != nil {
+			yaklog.Error(err)
+			return
+		}
+		return
+	}
+
+	if req == nil {
+		return
+	}
+
+	resp, err := h.HTTPClient.Do(req)
+	if err != nil {
+		yaklog.Error(err)
+		return
+	}
+
+	ctx.Response = resp
+
+	resp = h.filterResp(resp, ctx)
+	if err = resp.Write(client); err != nil {
+		yaklog.Error(err)
+		return
+	}
+	return
 }

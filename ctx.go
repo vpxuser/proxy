@@ -20,6 +20,7 @@ type Context struct {
 	IsTLS      bool
 	Protocol   string
 	ThirdCtx   interface{}
+	HttpProxy  *HttpProxy
 }
 
 func NewContext() *Context {

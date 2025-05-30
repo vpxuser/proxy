@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	yaklog "github.com/yaklang/yaklang/common/log"
 	"io"
 	"net"
@@ -54,4 +55,34 @@ func (h *HttpProxy) handleTCP(client net.Conn, ctx *Context) error {
 
 	<-errChan
 	return nil
+}
+
+func (h *HttpProxy) handleTcp(addr string, client net.Conn, ctx *Context) {
+	remote, err := net.Dial("tcp", addr)
+	if err != nil {
+		yaklog.Error(err)
+		return
+	}
+	defer remote.Close()
+
+	ho := &hook{h: h, ctx: ctx}
+
+	remoteHook := ho.copy()
+	remoteHook.w, remoteHook.reverse = remote, false
+	signal, cancel := context.WithCancel(context.Background())
+
+	go tcpCopy(remoteHook, client, cancel)
+
+	clientHook := ho.copy()
+	clientHook.w, clientHook.reverse = client, true
+
+	go tcpCopy(clientHook, remote, cancel)
+
+	<-signal.Done()
+}
+
+func tcpCopy(dst io.Writer, src io.Reader, cancel context.CancelFunc) {
+	if _, err := io.Copy(dst, src); err != nil {
+		cancel()
+	}
 }

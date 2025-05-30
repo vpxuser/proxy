@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"errors"
 	"github.com/gobwas/ws"
@@ -107,4 +108,77 @@ func (h *HttpProxy) handleWebSocket(client net.Conn, ctx *Context) (err error) {
 
 func handleEOF(err error) (isEOF bool) {
 	return err == io.EOF || errors.Is(err, net.ErrClosed)
+}
+
+func (h *HttpProxy) handleWebsocket(req *http.Request, https bool, addr string, client net.Conn, ctx *Context) {
+	req.Header.Del("Sec-WebSocket-Extensions")
+
+	remote, err := h.dialWebSocket(https, addr)
+	if err != nil {
+		yaklog.Error(err)
+		return
+	}
+	defer remote.Close()
+
+	if err = req.Write(remote); err != nil {
+		yaklog.Error(err)
+		return
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(remote), req)
+	if err != nil {
+		yaklog.Error(err)
+		return
+	}
+
+	if err = resp.Write(client); err != nil {
+		yaklog.Error(err)
+		return
+	}
+
+	signal, cancel := context.WithCancel(context.Background())
+
+	go h.wsCopy(remote, client, false, ctx, signal, cancel)
+	go h.wsCopy(client, remote, true, ctx, signal, cancel)
+	<-signal.Done()
+}
+
+func (h *HttpProxy) dialWebSocket(https bool, addr string) (net.Conn, error) {
+	if h.Dialer != nil {
+		h.Dialer.(Dialer).SetTLS(https)
+		return h.Dialer.Dial("tcp", addr)
+	}
+
+	if https {
+		return tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true})
+	}
+
+	return net.Dial("tcp", addr)
+}
+
+func (h *HttpProxy) wsCopy(dst io.Writer, src io.Reader, reverse bool, ctx *Context, signal context.Context, cancel context.CancelFunc) {
+	for {
+		select {
+		case <-signal.Done():
+			return
+		default:
+			frame, err := ws.ReadFrame(src)
+			if err != nil {
+				if !handleEOF(err) {
+					yaklog.Error(err)
+				}
+				cancel()
+				return
+			}
+
+			frame = h.filterWebSocket(frame, reverse, ctx)
+			if err = ws.WriteFrame(dst, frame); err != nil {
+				if !handleEOF(err) {
+					yaklog.Error(err)
+				}
+				cancel()
+				return
+			}
+		}
+	}
 }

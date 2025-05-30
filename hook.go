@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"github.com/gobwas/ws"
+	"net"
 	"net/http"
 	"strings"
 )
@@ -281,5 +282,24 @@ func RemoteIs(hosts ...string) RawMatch {
 	return func(raw []byte, reverse bool, ctx *Context) bool {
 		_, ok := hostSet[ctx.RemoteHost+":"+ctx.RemotePort]
 		return ok
+	}
+}
+
+type Pipe struct {
+	h        *HttpProxy
+	handlers []HandleConn
+}
+
+func (h *HttpProxy) OnConnect(handlers ...HandleConn) *Pipe {
+	return &Pipe{h: h, handlers: handlers}
+}
+
+func (p *Pipe) Do() {
+	p.h.connHandlers = append(p.h.connHandlers, p.handlers...)
+}
+
+func (h *HttpProxy) filterConn(client net.Conn, ctx *Context) {
+	for _, handle := range h.connHandlers {
+		handle(client, ctx)
 	}
 }

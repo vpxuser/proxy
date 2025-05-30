@@ -10,6 +10,182 @@ import (
 	"strings"
 )
 
+var Http HandleConn = func(client net.Conn, ctx *Context) {
+	req, err := http.ReadRequest(bufio.NewReader(client))
+	if err != nil {
+		yaklog.Errorf("%s read http request failed - %v", ctx.Preffix(), err)
+		return
+	}
+
+	ctx.Request = req
+
+	remoteHost, remotePort, err := net.SplitHostPort(req.Host)
+	if err != nil {
+		if strings.Contains(err.Error(), "missing port in address") {
+			remoteHost, remotePort = req.Host, "80"
+		} else {
+			yaklog.Error(err)
+			return
+		}
+	}
+
+	https := false
+	if req.Method == http.MethodConnect {
+		https = true
+
+		if _, err = client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n")); err != nil {
+			yaklog.Error(err)
+			return
+		}
+
+		tlsConfig, err := ctx.HttpProxy.GetTLSConfig(remoteHost)
+		if err != nil {
+			yaklog.Error(err)
+			return
+		}
+
+		client = tls.Server(client, tlsConfig)
+
+		req, err = http.ReadRequest(bufio.NewReader(client))
+		if err != nil {
+			yaklog.Error(err)
+			return
+		}
+
+		ctx.Request = req
+	}
+
+	if ctx.Request.Header.Get("Upgrade") == "websocket" {
+		addr := net.JoinHostPort(remoteHost, remotePort)
+		ctx.HttpProxy.handleWebsocket(req, https, addr, client, ctx)
+		return
+	}
+
+	ctx.HttpProxy.handleHTTP(req, https, client, ctx)
+}
+
+func Socks5Hook(hosts ...string) HandleConn {
+	todo := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		todo[host] = struct{}{}
+	}
+
+	return func(client net.Conn, ctx *Context) {
+		host, port, err := Socks5Handshake(client)
+		if err != nil {
+			yaklog.Error(err)
+			return
+		}
+		addr := net.JoinHostPort(host, port)
+
+		yaklog.Debugf("[%s] origin dst addr: %s", ctx.Id, addr)
+
+		ioClient, buf := NewConn(client), make([]byte, 3)
+		if _, err = ioClient.Reader.Read(buf); err != nil {
+			yaklog.Error(err)
+			return
+		}
+
+		var domain, sni string
+		https := false
+		if buf[0] == 0x16 {
+			https = true
+
+			var vhostTLS *vhost.TLSConn
+			if IsDomain(host) {
+				domain = host
+			} else {
+				if record, ok := NsLookup.Load(host); ok {
+					domain = record.(string)
+				} else {
+					vhostTLS, err = vhost.TLS(ioClient)
+					if err != nil {
+						yaklog.Error(err)
+						return
+					}
+					domain = vhostTLS.Host()
+					ioClient = NewConn(vhostTLS)
+				}
+			}
+
+			if _, ok := todo[domain]; !ok && len(todo) > 0 {
+				yaklog.Debugf("[%s] whitelist domain: %s", ctx.Id, domain)
+
+				ctx.HttpProxy.handleTcp(addr, ioClient, ctx)
+				return
+			}
+
+			if domain != "" {
+				yaklog.Debugf("[%s] origin dst domain: %s", ctx.Id, domain)
+
+				if record, ok := ServName.Load(domain); ok {
+					sni = record.(string)
+				} else {
+					sni = fetchDNS(domain, ctx.RemotePort)
+				}
+			} else {
+				yaklog.Debugf("[%s] domain is empty: %s", ctx.Id, domain)
+
+				ctx.HttpProxy.handleTcp(addr, ioClient, ctx)
+				return
+			}
+
+			tlsConfig, err := ctx.HttpProxy.GetTLSConfig(sni)
+			if err != nil {
+				yaklog.Error(err)
+				return
+			}
+
+			ioClient = NewConn(tls.Server(ioClient, tlsConfig))
+			if _, err = ioClient.Reader.Read(buf); err != nil {
+				yaklog.Error(err)
+				return
+			}
+		}
+
+		if _, ok := HttpMethod[string(buf)]; ok {
+			req, err := http.ReadRequest(bufio.NewReader(ioClient))
+			if err != nil {
+				yaklog.Error(err)
+				return
+			}
+
+			ctx.Request = req
+
+			domain, port, err = net.SplitHostPort(req.Host)
+			if err != nil {
+				if strings.Contains(err.Error(), "missing port in address") {
+					domain, port = req.Host, "80"
+					if https {
+						port = "443"
+					}
+				}
+				yaklog.Warn(err)
+			}
+
+			if https {
+				if _, ok = NsLookup.Load(host); !ok && !IsDomain(host) {
+					NsLookup.Store(host, domain)
+				}
+
+				if _, ok = ServName.Load(domain); !ok {
+					ServName.Store(domain, sni)
+				}
+			}
+
+			if req.Header.Get("Upgrade") == "websocket" {
+				ctx.HttpProxy.handleWebsocket(req, https, addr, ioClient, ctx)
+				return
+			}
+
+			ctx.HttpProxy.handleHTTP(req, https, ioClient, ctx)
+			return
+		}
+
+		ctx.HttpProxy.handleTcp(addr, ioClient, ctx)
+	}
+}
+
 type ConnectMode func(client net.Conn, h *HttpProxy, ctx *Context)
 
 var Manual ConnectMode = func(client net.Conn, h *HttpProxy, ctx *Context) {

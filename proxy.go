@@ -101,6 +101,9 @@ type HandleWebSocket func(frame ws.Frame, reverse bool, ctx *Context) ws.Frame
 
 type HandleRaw func(raw []byte, reverse bool, ctx *Context) []byte
 
+// todo
+type HandleConn func(client net.Conn, ctx *Context)
+
 type HttpProxy struct {
 	Host              string
 	Port              string
@@ -113,6 +116,8 @@ type HttpProxy struct {
 	respHandlers      []HandleResp
 	webSocketHandlers []HandleWebSocket
 	rawHandlers       []HandleRaw
+	//todo
+	connHandlers []HandleConn
 }
 
 func NewHttpProxy() *HttpProxy {
@@ -195,6 +200,42 @@ func (h *HttpProxy) Serve(handleConn ConnectMode) {
 			}()
 
 			handleConn(client, h, ctx)
+		}(client)
+	}
+}
+
+func (h *HttpProxy) Run() {
+	httpProxy, err := net.Listen("tcp", h.Host+":"+h.Port)
+	if err != nil {
+		yaklog.Fatalf("listen %s failed", h.Host+":"+h.Port)
+	}
+	defer httpProxy.Close()
+
+	yaklog.Infof("listen %s success", h.Host+":"+h.Port)
+
+	threads := make(chan struct{}, h.Threads)
+
+	for {
+		ctx := NewContext()
+
+		client, err := httpProxy.Accept()
+		if err != nil {
+			yaklog.Errorf("%s accept client connection failed - %v", ctx.Preffix(), err)
+			continue
+		}
+
+		ctx.ClientAddr = client.RemoteAddr().String()
+
+		yaklog.Infof("%s accept %s connection success", ctx.Preffix(), ctx.ClientAddr)
+
+		threads <- struct{}{}
+		go func(client net.Conn) {
+			defer func() {
+				_ = client.Close()
+				<-threads
+			}()
+
+			h.filterConn(client, ctx)
 		}(client)
 	}
 }
