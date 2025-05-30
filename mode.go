@@ -278,3 +278,121 @@ func SelectMitmManual(hosts ...string) ConnectMode {
 		_ = h.handleTCP(client, ctx)
 	}
 }
+
+func Socks5(hosts ...string) ConnectMode {
+	whiteList := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		whiteList[host] = struct{}{}
+	}
+
+	return func(client net.Conn, h *HttpProxy, ctx *Context) {
+		remoteHost, remotePort, err := Socks5Handshake(client)
+		if err != nil {
+			yaklog.Errorf("%s socks5 handshake failed - %v", ctx.Preffix(), err)
+			return
+		}
+
+		ctx.RemoteHost, ctx.RemotePort = remoteHost, remotePort
+
+		ioClient, buf := NewConn(client), make([]byte, 3)
+		if _, err := ioClient.Reader.Read(buf); err != nil {
+			yaklog.Errorf("%s peek buf[:3] failed - %v", ctx.Preffix(), err)
+			return
+		}
+
+		if buf[0] == 0x16 {
+			ctx.IsTLS, ctx.Protocol = true, "TLS"
+
+			var (
+				vhostClient *vhost.TLSConn
+				fqdn        string
+				servName    string
+			)
+
+			if IsDomain(remoteHost) {
+				fqdn = remoteHost
+			} else {
+				if host, ok := NsLookup.Load(remoteHost); ok {
+					fqdn = host.(string)
+				} else {
+					vhostClient, err = vhost.TLS(ioClient)
+					if err != nil {
+						yaklog.Errorf("%s parse client hello failed - %v", ctx.Preffix(), err)
+						return
+					}
+
+					fqdn = vhostClient.Host()
+				}
+			}
+
+			if fqdn != "" {
+				if host, ok := ServName.Load(fqdn); ok {
+					servName = host.(string)
+				} else {
+					servName = fetchDNS(fqdn, ctx.RemotePort)
+				}
+			} else {
+				servName = h.DefaultSNI
+			}
+
+			ctx.ServName = servName
+
+			tlsConfig, err := h.GetTLSConfig(ctx.RemoteHost)
+			if err != nil {
+				yaklog.Errorf("%s generate tls config failed - %v", ctx.Preffix(), err)
+				return
+			}
+
+			if vhostClient != nil {
+				ioClient = NewConn(tls.Server(vhostClient, tlsConfig))
+			} else {
+				ioClient = NewConn(tls.Server(ioClient, tlsConfig))
+			}
+
+			if _, ok := whiteList[fqdn]; !ok && len(whiteList) > 0 {
+				_ = h.handleTCP(ioClient, ctx)
+				return
+			}
+
+			if _, err = ioClient.Reader.Read(buf); err != nil {
+				yaklog.Errorf("%s remote server name invalid - %v", ctx.Preffix(), err)
+				return
+			}
+		}
+
+		if _, ok := HttpMethod[string(buf)]; ok {
+			ctx.Request, err = http.ReadRequest(bufio.NewReader(ioClient))
+			if err != nil {
+				yaklog.Errorf("%s read http request failed - %v", ctx.Preffix(), err)
+				return
+			}
+
+			ctx.RemoteHost, _, err = net.SplitHostPort(ctx.Request.Host)
+			if err != nil {
+				if strings.Contains(err.Error(), "missing port in address") {
+					ctx.RemoteHost = ctx.Request.Host
+				}
+			}
+
+			if ctx.IsTLS {
+				if _, ok = NsLookup.Load(remoteHost); !ok && !IsDomain(remoteHost) {
+					NsLookup.Store(remoteHost, ctx.RemoteHost)
+				}
+
+				if _, ok = ServName.Load(ctx.RemoteHost); !ok {
+					ServName.Store(ctx.RemoteHost, ctx.ServName)
+				}
+			}
+
+			if ctx.Request.Header.Get("Upgrade") == "websocket" {
+				_ = h.handleWebSocket(ioClient, ctx)
+			} else {
+				ctx.Protocol, ctx.Request.URL.Scheme = "HTTP", "http"
+				_ = h.handleHttp(ioClient, ctx)
+			}
+		} else {
+			ctx.RemoteHost = remoteHost
+			_ = h.handleTCP(ioClient, ctx)
+		}
+	}
+}

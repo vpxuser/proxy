@@ -168,6 +168,8 @@ func (h *HttpProxy) Serve(handleConn ConnectMode) {
 	if err != nil {
 		yaklog.Fatalf("listen %s failed", h.Host+":"+h.Port)
 	}
+	defer httpProxy.Close()
+
 	yaklog.Infof("listen %s success", h.Host+":"+h.Port)
 
 	threads := make(chan struct{}, h.Threads)

@@ -3,6 +3,7 @@ module github.com/vpxuser/proxy
 go 1.21.5
 
 require (
+	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/elazarl/goproxy v1.7.0
 	github.com/gobwas/ws v1.4.0
 	github.com/google/uuid v1.6.0
