@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -11,25 +12,28 @@ import (
 	"time"
 )
 
-type GenTLSConfig func(serverName string) (*tls.Config, error)
+type TLSConfig interface {
+	From(string) (*tls.Config, error)
+}
 
-func TLSConfigFormCA(cert *x509.Certificate, key *rsa.PrivateKey) GenTLSConfig {
-	return func(serverName string) (*tls.Config, error) {
-		subConf := goproxy.NewProxyHttpServer()
-		//subConf.Tr.DisableCompression = true
+type TLSConfigFn func(string) (*tls.Config, error)
 
+func (f TLSConfigFn) From(san string) (*tls.Config, error) { return f(san) }
+
+func FromCA(cert *x509.Certificate, privateKey *rsa.PrivateKey) TLSConfigFn {
+	return func(san string) (*tls.Config, error) {
 		return goproxy.TLSConfigFromCA(&tls.Certificate{
 			Certificate: [][]byte{cert.Raw},
-			PrivateKey:  key,
-		})(serverName, &goproxy.ProxyCtx{
-			Proxy: subConf,
+			PrivateKey:  privateKey,
+		})(san, &goproxy.ProxyCtx{
+			Proxy: goproxy.NewProxyHttpServer(),
 		})
 	}
 }
 
-func TLSConfigFromSelfSigned() GenTLSConfig {
-	return func(serverName string) (*tls.Config, error) {
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
+func FromSelfSigned() TLSConfigFn {
+	return func(san string) (*tls.Config, error) {
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +46,7 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 		template := x509.Certificate{
 			SerialNumber: serialNumber,
 			Subject: pkix.Name{
-				CommonName: serverName,
+				CommonName: san,
 			},
 			NotBefore:             time.Now(),
 			NotAfter:              time.Now().Add(3 * 24 * time.Hour),
@@ -50,10 +54,10 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 			BasicConstraintsValid: true,
 			IsCA:                  true,
-			DNSNames:              []string{serverName},
+			DNSNames:              []string{san},
 		}
 
-		certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+		certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -67,20 +71,20 @@ func TLSConfigFromSelfSigned() GenTLSConfig {
 			Certificates: []tls.Certificate{
 				{
 					Certificate: [][]byte{cert.Raw},
-					PrivateKey:  key,
+					PrivateKey:  privateKey,
 				},
 			},
 		}, nil
 	}
 }
 
-func TLSConfigFrom(cert *x509.Certificate, key any) GenTLSConfig {
-	return func(serverName string) (*tls.Config, error) {
+func From(cert *x509.Certificate, privateKey crypto.PrivateKey) TLSConfigFn {
+	return func(san string) (*tls.Config, error) {
 		return &tls.Config{
 			Certificates: []tls.Certificate{
 				{
 					Certificate: [][]byte{cert.Raw},
-					PrivateKey:  key,
+					PrivateKey:  privateKey,
 				},
 			},
 		}, nil

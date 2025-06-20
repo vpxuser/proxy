@@ -1,78 +1,77 @@
 package proxy
 
 import (
-	"errors"
-	yaklog "github.com/yaklang/yaklang/common/log"
+	"bufio"
+	"crypto/tls"
 	"net"
 	"net/http"
 )
 
-func (h *HttpProxy) handleHttp(client net.Conn, ctx *Context) (err error) {
-	if ctx.IsTLS {
-		ctx.Protocol, ctx.Request.URL.Scheme = "HTTPS", "https"
-	}
-
-	ctx.Request.URL.Host, ctx.Request.RequestURI = ctx.Request.Host, ""
-
-	ctx.Request, ctx.Response = h.filterReq(ctx.Request, ctx)
-
-	if ctx.Response == nil {
-		if ctx.Request != nil {
-			ctx.Response, err = h.HTTPClient.Do(ctx.Request)
-			if err != nil {
-				yaklog.Errorf("%s send request to remote failed - %v", ctx.Preffix(), err)
-				return err
-			}
-		} else {
-			errNil := errors.New("request and response are nil")
-			yaklog.Errorf("%s fliterReq error - %v", ctx.Preffix(), errNil)
-			return errNil
-		}
-		ctx.Response = h.filterResp(ctx.Response, ctx)
-	}
-
-	if err = ctx.Response.Write(client); err != nil {
-		yaklog.Errorf("%s send response to client failed - %v", ctx.Preffix(), err)
-		return err
-	}
-
-	return nil
+type HttpHandler interface {
+	HandleHttp(*Context)
 }
 
-func (h *HttpProxy) handleHTTP(req *http.Request, tls bool, client net.Conn, ctx *Context) {
-	req.URL.Scheme = "http"
-	if tls {
-		req.URL.Scheme = "https"
-	}
+type HandleHttpFn func(*Context)
 
-	req.URL.Host, req.RequestURI = req.Host, ""
+func (f HandleHttpFn) HandleHttp(ctx *Context) { f(ctx) }
 
-	req, resp := h.filterReq(req, ctx)
+var defaultHttpHandler HandleHttpFn = func(ctx *Context) { handleHttp(ctx) }
 
-	if resp != nil {
-		if err := resp.Write(client); err != nil {
-			yaklog.Error(err)
+func handleHttp(ctx *Context) {
+	req, resp := ctx.filterReq(ctx.Req, ctx)
+	if resp == nil {
+		if req == nil {
 			return
 		}
-		return
+
+		var tlsConfig *tls.Config
+		if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
+			tlsConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+
+		proxyConn, err := dialWithDialer(ctx.dialer, "tcp", net.JoinHostPort(ctx.DstHost, ctx.DstPort), tlsConfig)
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+		defer proxyConn.Close()
+
+		if err = req.WriteProxy(proxyConn); err != nil {
+			ctx.Error(err)
+			return
+		}
+
+		resp, err = http.ReadResponse(bufio.NewReader(proxyConn), req)
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+		defer resp.Body.Close()
 	}
 
-	if req == nil {
-		return
+	if err := ctx.filterResp(resp, ctx).Write(ctx.Conn); err != nil {
+		ctx.Error(err)
+	}
+}
+
+func dialWithDialer(dialer Dialer, network, addr string, tlsConfig *tls.Config) (net.Conn, error) {
+	if dialer != nil {
+		var opts []DialerOption
+		if tlsConfig != nil {
+			opts = append(opts, WithTLSConfig(tlsConfig))
+		}
+
+		return dialer.Dial(network, addr, opts...)
 	}
 
-	resp, err := h.HTTPClient.Do(req)
+	conn, err := net.Dial(network, addr)
 	if err != nil {
-		yaklog.Error(err)
-		return
+		return nil, err
 	}
 
-	ctx.Response = resp
-
-	resp = h.filterResp(resp, ctx)
-	if err = resp.Write(client); err != nil {
-		yaklog.Error(err)
-		return
+	if tlsConfig != nil {
+		return tls.Client(conn, tlsConfig), nil
 	}
-	return
+
+	return conn, nil
 }
