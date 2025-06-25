@@ -24,8 +24,8 @@ func main() {
 		proxy.Fatal(err)
 	}
 
-	cfg.WithOptions(proxy.WithNegotiator(
-		proxy.Socks5Handler),
+	cfg.WithOptions(
+		proxy.WithNegotiator(proxy.Socks5Negotiator),
 		proxy.WithTLSConfigFn(proxy.FromCA(Cert, Key)),
 		proxy.WithDialer(dialer),
 	)
@@ -53,7 +53,7 @@ func main() {
 		return frame
 	})
 
-	cfg.WithRawMatcher().Do(func(raw []byte, ctx *proxy.Context) []byte {
+	cfg.WithRawMatcher().Handle(func(raw []byte, ctx *proxy.Context) []byte {
 		ctx.Infof("\n%s", raw)
 		return raw
 	})

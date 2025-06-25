@@ -187,7 +187,7 @@ func (c *Config) WithRawMatcher(matcher ...RawMatcher) *RawFilter {
 
 type RawHandlerFn func([]byte, *Context) []byte
 
-func (r *RawFilter) Do(handle RawHandlerFn) {
+func (r *RawFilter) Handle(handle RawHandlerFn) {
 	r.cfg.rawHandlers = append(r.cfg.rawHandlers,
 		func(raw []byte, ctx *Context) []byte {
 			for _, matcher := range r.matcher {

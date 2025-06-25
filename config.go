@@ -18,6 +18,7 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{
+		negotiator:  defaultNegotiator,
 		dispatcher:  defaultDispatcher,
 		httpHandler: defaultHttpHandler,
 		wsHandler:   defaultWsHandler,
