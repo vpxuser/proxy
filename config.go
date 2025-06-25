@@ -1,6 +1,7 @@
 package proxy
 
 type Config struct {
+	limiter      Limiter
 	negotiator   Negotiator
 	dispatcher   Dispatcher
 	tlsConfig    TLSConfig
@@ -31,6 +32,10 @@ func (c *Config) WithOptions(opts ...ConfigOption) *Config {
 		opt(c)
 	}
 	return c
+}
+
+func WithLimiter(limiter Limiter) ConfigOption {
+	return func(c *Config) { c.limiter = limiter }
 }
 
 func WithNegotiator(negotiator Negotiator) ConfigOption {
