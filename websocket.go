@@ -85,10 +85,10 @@ func handleWs(ctx *Context) {
 // wsCopy 从 src 中读取 WebSocket 帧并写入到 dst，
 // 可选地对帧进行过滤。如发生错误将取消上下文。
 func wsCopy(dst, src net.Conn, ctx *Context, c context.Context, cancel context.CancelFunc) {
-	for isContextAlive(c) {
+	for c.Err() == nil {
 		frame, err := ws.ReadFrame(src)
 		if err != nil {
-			if isContextAlive(c) {
+			if c.Err() == nil {
 				ctx.Error(err)
 				cancel()
 			}
@@ -98,7 +98,7 @@ func wsCopy(dst, src net.Conn, ctx *Context, c context.Context, cancel context.C
 		// Filter and write the frame to destination.
 		// 过滤并写入帧到目标连接。
 		if err = ws.WriteFrame(dst, ctx.filterWs(frame, ctx)); err != nil {
-			if isContextAlive(c) {
+			if c.Err() == nil {
 				ctx.Error(err)
 				cancel()
 			}

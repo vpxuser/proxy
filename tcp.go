@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"net"
 )
@@ -48,7 +49,7 @@ func (w *ctxWriter) Write(p []byte) (int, error) {
 
 func tcpCopy(dst, src net.Conn, ctx *Context, c context.Context, cancel context.CancelFunc) {
 	if _, err := io.Copy(&ctxWriter{dst, ctx}, src); err != nil {
-		if isContextAlive(c) && err != io.EOF {
+		if c.Err() == nil && !errors.Is(err, io.EOF) {
 			ctx.Error(err)
 			cancel()
 		}

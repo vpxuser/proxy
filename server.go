@@ -22,7 +22,6 @@ func (l *Listener) Serve() error {
 
 	for {
 		if limiter := l.cfg.limiter; limiter != nil {
-			Tracef("Limiter state: in use=%d, capacity=%d, available=%d", limiter.InUse(), limiter.Capacity(), limiter.Available())
 			l.cfg.limiter.Acquire()
 		}
 

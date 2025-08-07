@@ -1,24 +1,20 @@
 package proxy
 
+import (
+	"golang.org/x/net/context"
+	"golang.org/x/sync/semaphore"
+)
+
 type Limiter interface {
 	Acquire()
 	Release()
-	InUse() int
-	Capacity() int
-	Available() int
 }
 
-type TokenBucket struct {
-	tokens chan struct{}
-	max    int
+type StdLimiter struct {
+	*semaphore.Weighted
 }
 
-func NewTokenBucket(max int) *TokenBucket {
-	return &TokenBucket{tokens: make(chan struct{}, max), max: max}
-}
+func NewLimiter(n int64) Limiter { return &StdLimiter{semaphore.NewWeighted(n)} }
 
-func (tb *TokenBucket) Acquire()       { tb.tokens <- struct{}{} }
-func (tb *TokenBucket) Release()       { <-tb.tokens }
-func (tb *TokenBucket) InUse() int     { return len(tb.tokens) }
-func (tb *TokenBucket) Capacity() int  { return tb.max }
-func (tb *TokenBucket) Available() int { return tb.max - len(tb.tokens) }
+func (l *StdLimiter) Acquire() { _ = l.Weighted.Acquire(context.Background(), 1) }
+func (l *StdLimiter) Release() { l.Weighted.Release(1) }
