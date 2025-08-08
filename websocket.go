@@ -106,14 +106,3 @@ func wsCopy(dst, src net.Conn, ctx *Context, c context.Context, cancel context.C
 		}
 	}
 }
-
-// isContextAlive returns true if the context has not been canceled.
-// isContextAlive 用于判断上下文是否仍然有效（未被取消）。
-func isContextAlive(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	default:
-		return true
-	}
-}

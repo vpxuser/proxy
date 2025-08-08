@@ -2,12 +2,12 @@ package proxy
 
 type Config struct {
 	limiter      Limiter
-	negotiator   Negotiator
-	dispatcher   Dispatcher
-	tlsConfig    TLSConfig
-	httpHandler  HttpHandler
-	wsHandler    WsHandler
-	tcpHandler   TcpHandler
+	Negotiator   Negotiator
+	Dispatcher   Dispatcher
+	TLSConfig    TLSConfig
+	HttpHandler  HttpHandler
+	WsHandler    WsHandler
+	TcpHandler   TcpHandler
 	dialer       Dialer
 	DefaultSAN   string
 	reqHandlers  []ReqHandlerFn
@@ -18,11 +18,11 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{
-		negotiator:  defaultNegotiator,
-		dispatcher:  defaultDispatcher,
-		httpHandler: defaultHttpHandler,
-		wsHandler:   defaultWsHandler,
-		tcpHandler:  defaultTcpHandler,
+		Negotiator:  defaultNegotiator,
+		Dispatcher:  defaultDispatcher,
+		HttpHandler: defaultHttpHandler,
+		WsHandler:   defaultWsHandler,
+		TcpHandler:  defaultTcpHandler,
 	}
 }
 
@@ -40,27 +40,27 @@ func WithLimiter(limiter Limiter) ConfigOption {
 }
 
 func WithNegotiator(negotiator Negotiator) ConfigOption {
-	return func(c *Config) { c.negotiator = negotiator }
+	return func(c *Config) { c.Negotiator = negotiator }
 }
 
 func WithDispatcher(dispatcher Dispatcher) ConfigOption {
-	return func(c *Config) { c.dispatcher = dispatcher }
+	return func(c *Config) { c.Dispatcher = dispatcher }
 }
 
 func WithTLSConfigFn(tlsConfig TLSConfig) ConfigOption {
-	return func(c *Config) { c.tlsConfig = tlsConfig }
+	return func(c *Config) { c.TLSConfig = tlsConfig }
 }
 
 func WithHttpHandler(httpHandler HttpHandler) ConfigOption {
-	return func(c *Config) { c.httpHandler = httpHandler }
+	return func(c *Config) { c.HttpHandler = httpHandler }
 }
 
 func WithWsHandler(wsHandler WsHandler) ConfigOption {
-	return func(c *Config) { c.wsHandler = wsHandler }
+	return func(c *Config) { c.WsHandler = wsHandler }
 }
 
 func WithTcpHandler(tcpHandler TcpHandler) ConfigOption {
-	return func(c *Config) { c.tcpHandler = tcpHandler }
+	return func(c *Config) { c.TcpHandler = tcpHandler }
 }
 
 func WithDialer(dialer Dialer) ConfigOption {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-var httpMethods = map[string]struct{}{
+var HttpMethods = map[string]struct{}{
 	http.MethodGet[:3]:     {},
 	http.MethodHead[:3]:    {},
 	http.MethodPost[:3]:    {},

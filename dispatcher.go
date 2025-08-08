@@ -43,7 +43,7 @@ func dispatch(ctx *Context) {
 
 					san = ctx.DefaultSAN
 					if san == "" {
-						ctx.tcpHandler.HandleTcp(ctx)
+						ctx.TcpHandler.HandleTcp(ctx)
 						return
 					}
 				} else {
@@ -54,7 +54,7 @@ func dispatch(ctx *Context) {
 			}
 		}
 
-		tlsCfg, err := ctx.tlsConfig.From(san)
+		tlsCfg, err := ctx.TLSConfig.From(san)
 		if err != nil {
 			ctx.Error(err)
 			return
@@ -70,7 +70,7 @@ func dispatch(ctx *Context) {
 		return
 	}
 
-	if _, ok := httpMethods[string(buf)]; ok {
+	if _, ok := HttpMethods[string(buf)]; ok {
 		ctx.Req, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
 		if err != nil {
 			ctx.Error(err)
@@ -86,13 +86,13 @@ func dispatch(ctx *Context) {
 		}
 
 		if websocket.IsWebSocketUpgrade(ctx.Req) {
-			ctx.wsHandler.HandleWs(ctx)
+			ctx.WsHandler.HandleWs(ctx)
 			return
 		}
 
-		ctx.httpHandler.HandleHttp(ctx)
+		ctx.HttpHandler.HandleHttp(ctx)
 		return
 	}
 
-	ctx.tcpHandler.HandleTcp(ctx)
+	ctx.TcpHandler.HandleTcp(ctx)
 }

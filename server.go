@@ -40,8 +40,8 @@ func (l *Listener) Serve() error {
 		go func() {
 			defer inner.Close()
 
-			if ctx.negotiator != nil {
-				if err = ctx.negotiator.Handshake(ctx); err != nil {
+			if ctx.Negotiator != nil {
+				if err = ctx.Negotiator.Handshake(ctx); err != nil {
 					ctx.Error(err)
 					return
 				}
@@ -49,7 +49,7 @@ func (l *Listener) Serve() error {
 
 			ctx.Debugf("Dispatching connection to %s:%s", ctx.DstHost, ctx.DstPort)
 
-			ctx.dispatcher.Dispatch(ctx)
+			ctx.Dispatcher.Dispatch(ctx)
 		}()
 	}
 }

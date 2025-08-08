@@ -16,7 +16,7 @@ func testDispatch(t *testing.T) DispatchFn {
 	}
 }
 
-func newTestCfg(t *testing.T) *Config { return &Config{dispatcher: testDispatch(t)} }
+func newTestCfg(t *testing.T) *Config { return &Config{Dispatcher: testDispatch(t)} }
 
 func server(wg *sync.WaitGroup, network, addr string, t *testing.T) {
 	defer wg.Done()
