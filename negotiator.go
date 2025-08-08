@@ -36,9 +36,9 @@ func httpHandshake(ctx *Context) error {
 		return err
 	}
 
-	if string(buf) != "CON" {
-		// Not a CONNECT request
-		// 不是 CONNECT 请求
+	if _, ok := HttpMethods[string(buf)]; !ok {
+		// Not a HTTP request
+		// 不是 HTTP 请求
 		return nil
 	}
 
@@ -53,11 +53,19 @@ func httpHandshake(ctx *Context) error {
 	// 从请求中提取目标主机和端口
 	ctx.DstHost = req.URL.Hostname()
 	ctx.DstPort = req.URL.Port()
+	if ctx.DstPort == "" {
+		ctx.DstPort = "80"
+	}
 
-	// Respond with HTTP 200 to establish tunnel
-	// 返回 HTTP 200 表示隧道建立成功
-	_, err = ctx.Conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
-	return err
+	if req.Method == http.MethodConnect {
+		// Respond with HTTP 200 to establish tunnel
+		// 返回 HTTP 200 表示隧道建立成功
+		_, err = ctx.Conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		return err
+	}
+
+	ctx.Req = req
+	return nil
 }
 
 // Socks5Negotiator is a built-in SOCKS5 handshake handler.

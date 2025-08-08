@@ -64,19 +64,25 @@ func dispatch(ctx *Context) {
 		ctx.Conn = NewConn(tls.Server(ctx.Conn, tlsCfg))
 	}
 
-	buf, err = ctx.Conn.Peek(3)
-	if err != nil {
-		ctx.Error(err)
-		return
-	}
-
-	if _, ok := HttpMethods[string(buf)]; ok {
-		ctx.Req, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
+	isHttp := false
+	if ctx.Req == nil {
+		buf, err = ctx.Conn.Peek(3)
 		if err != nil {
 			ctx.Error(err)
 			return
 		}
 
+		if _, ok := HttpMethods[string(buf)]; ok {
+			isHttp = true
+			ctx.Req, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
+			if err != nil {
+				ctx.Error(err)
+				return
+			}
+		}
+	}
+
+	if isHttp {
 		if isTLS && !IsDomain(ctx.DstHost) {
 			hostname, _, err := net.SplitHostPort(ctx.Req.Host)
 			if err != nil {
@@ -95,4 +101,5 @@ func dispatch(ctx *Context) {
 	}
 
 	ctx.TcpHandler.HandleTcp(ctx)
+	return
 }
