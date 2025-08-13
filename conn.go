@@ -13,25 +13,15 @@ type Conn struct {
 }
 
 func (c *Conn) Read(p []byte) (int, error) {
-	total := 0
-
-	if c.buf.Len() > 0 {
-		n, _ := c.buf.Read(p)
-		total += n
-		if total == len(p) {
-			return total, nil
-		}
-	}
-
-	if total < len(p) {
-		n, err := c.Conn.Read(p[total:])
-		total += n
+	n, err := c.buf.Read(p)
+	if err == io.EOF {
+		m, err := c.Conn.Read(p[n:])
+		n += m
 		if err != nil {
-			return total, err
+			return n, err
 		}
 	}
-
-	return total, nil
+	return n, err
 }
 
 func (c *Conn) TeeReader() io.Reader { return c.teeReader }

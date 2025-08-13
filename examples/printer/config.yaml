@@ -5,4 +5,4 @@ cert: cert.pem
 #key: examples/printer/key.pem
 key: key.pem
 #san: www.baidu.com
-proxy: socks5h://127.0.0.1:10808
+#proxy: socks5h://127.0.0.1:10808

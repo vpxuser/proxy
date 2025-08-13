@@ -48,6 +48,12 @@ func httpHandshake(ctx *Context) error {
 	}
 
 	if req.Method == http.MethodConnect {
+		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
+		if err != nil {
+			ctx.Error(err)
+			return err
+		}
+
 		resp := &http.Response{
 			StatusCode: http.StatusOK,
 			Status:     "Connection Established",

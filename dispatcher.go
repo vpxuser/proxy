@@ -18,10 +18,8 @@ type DispatchFn func(*Context)
 func (f DispatchFn) Dispatch(ctx *Context) { f(ctx) }
 
 var defaultDispatcher DispatchFn = func(ctx *Context) {
-	teeReader := ctx.Conn.TeeReader()
-
 	buf := make([]byte, 3)
-	_, err := teeReader.Read(buf)
+	_, err := ctx.Conn.TeeReader().Read(buf)
 	if err == nil {
 		isTLS := buf[0] == 0x16 && buf[1] == 0x03
 		if isTLS {
@@ -55,7 +53,7 @@ var defaultDispatcher DispatchFn = func(ctx *Context) {
 			ctx.Conn = NewConn(tls.Server(ctx.Conn, tlsCfg))
 		}
 
-		ctx.Req, err = http.ReadRequest(bufio.NewReader(teeReader))
+		ctx.Req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
 		if err != nil {
 			ctx.TcpHandler.HandleTcp(ctx)
 			return

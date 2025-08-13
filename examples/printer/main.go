@@ -9,10 +9,6 @@ import (
 	"net/http/httputil"
 )
 
-func init() {
-
-}
-
 func main() {
 	proxy.SetLogLevel(proxy.TraceLevel)
 
