@@ -3,6 +3,7 @@ package proxy
 type Config struct {
 	limiter      Limiter
 	Negotiator   Negotiator
+	Resolver     Resolver
 	Dispatcher   Dispatcher
 	TLSConfig    TLSConfig
 	HttpHandler  HttpHandler
@@ -19,6 +20,7 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		Negotiator:  defaultNegotiator,
+		Resolver:    defaultResolver,
 		Dispatcher:  defaultDispatcher,
 		HttpHandler: defaultHttpHandler,
 		WsHandler:   defaultWsHandler,

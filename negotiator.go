@@ -29,42 +29,37 @@ var defaultNegotiator HandshakeFn = func(ctx *Context) error { return httpHandsh
 // httpHandshake handles HTTP CONNECT requests for tunneling HTTPS over proxy.
 // httpHandshake 处理 HTTP CONNECT 请求，用于通过代理建立 HTTPS 隧道。
 func httpHandshake(ctx *Context) error {
-	// Peek first 3 bytes to identify HTTP CONNECT
-	// 读取前 3 个字节以判断是否为 CONNECT 请求
-	buf, err := ctx.Conn.Peek(3)
+	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
 	if err != nil {
+		ctx.Error(err)
 		return err
 	}
 
-	if _, ok := HttpMethods[string(buf)]; !ok {
-		// Not a HTTP request
-		// 不是 HTTP 请求
-		return nil
-	}
-
-	// Parse full HTTP request
-	// 解析完整的 HTTP 请求
-	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn))
-	if err != nil {
-		return err
-	}
-
-	// Extract target host and port from request
-	// 从请求中提取目标主机和端口
 	ctx.DstHost = req.URL.Hostname()
 	ctx.DstPort = req.URL.Port()
 	if ctx.DstPort == "" {
-		ctx.DstPort = "80"
+		switch req.Method {
+		case http.MethodConnect:
+			ctx.DstPort = "443"
+		default:
+			ctx.DstPort = "80"
+		}
 	}
 
 	if req.Method == http.MethodConnect {
-		// Respond with HTTP 200 to establish tunnel
-		// 返回 HTTP 200 表示隧道建立成功
-		_, err = ctx.Conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
-		return err
-	}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "Connection Established",
+			ProtoMajor: req.ProtoMajor,
+			ProtoMinor: req.ProtoMinor,
+		}
 
-	ctx.Req = req
+		err := resp.Write(ctx.Conn)
+		if err != nil {
+			ctx.Error(err)
+			return err
+		}
+	}
 	return nil
 }
 

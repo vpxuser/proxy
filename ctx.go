@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 )
 
 type Context struct {
+	context.Context
 	logger Logger
 	Id     string
 	Conn   *Conn
@@ -19,8 +21,9 @@ type Context struct {
 
 func NewContext() *Context {
 	return &Context{
-		logger: defaultCtxLogger,
-		Id:     xid.New().String(),
+		Context: context.Background(),
+		logger:  defaultCtxLogger,
+		Id:      xid.New().String(),
 	}
 }
 

@@ -41,7 +41,8 @@ func handleWs(ctx *Context) {
 
 	// Dial to the target WebSocket server.
 	// 拨号连接目标 WebSocket 服务端。
-	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", ctx.DstHost, tlsConfig)
+	dstAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
+	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", dstAddr, tlsConfig)
 	if err != nil {
 		ctx.Error(err)
 		return

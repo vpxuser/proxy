@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"strings"
 )
 
 type HttpHandler interface {
@@ -18,40 +19,73 @@ func (f HandleHttpFn) HandleHttp(ctx *Context) { f(ctx) }
 var defaultHttpHandler HandleHttpFn = func(ctx *Context) { handleHttp(ctx) }
 
 func handleHttp(ctx *Context) {
-	req, resp := ctx.filterReq(ctx.Req, ctx)
-	if resp == nil {
-		if req == nil {
-			return
-		}
-
-		var tlsConfig *tls.Config
-		if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
-			tlsConfig = &tls.Config{InsecureSkipVerify: true}
-		}
-
-		proxyConn, err := dialWithDialer(ctx.dialer, "tcp", net.JoinHostPort(ctx.DstHost, ctx.DstPort), tlsConfig)
-		if err != nil {
-			ctx.Error(err)
-			return
-		}
-		defer proxyConn.Close()
-
-		if err = req.WriteProxy(proxyConn); err != nil {
-			ctx.Error(err)
-			return
-		}
-
-		resp, err = http.ReadResponse(bufio.NewReader(proxyConn), req)
-		if err != nil {
-			ctx.Error(err)
-			return
-		}
-		defer resp.Body.Close()
+	var tlsConfig *tls.Config
+	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
+		tlsConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	if err := ctx.filterResp(resp, ctx).Write(ctx.Conn); err != nil {
+	dstAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
+	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", dstAddr, tlsConfig)
+	if err != nil {
 		ctx.Error(err)
+		return
 	}
+	defer proxyConn.Close()
+
+	reqReader := bufio.NewReader(ctx.Conn)
+	respReader := bufio.NewReader(proxyConn)
+
+	for {
+		req, err := http.ReadRequest(reqReader)
+		if err != nil {
+			ctx.Error(err)
+			return
+		}
+
+		req, resp := ctx.filterReq(req, ctx)
+		if resp == nil {
+			if req == nil {
+				return
+			}
+
+			err := req.WriteProxy(proxyConn)
+			if err != nil {
+				ctx.Error(err)
+				return
+			}
+
+			resp, err = http.ReadResponse(respReader, req)
+			if err != nil {
+				ctx.Error(err)
+				return
+			}
+		}
+
+		if err := ctx.filterResp(resp, ctx).Write(ctx.Conn); err != nil {
+			ctx.Error(err)
+			return
+		}
+		resp.Body.Close()
+
+		if !isKeepAlive(req) {
+			return
+		}
+	}
+}
+
+func isKeepAlive(req *http.Request) bool {
+	if req.ProtoMajor == 1 {
+		connection := req.Header.Get("Connection")
+		connection = strings.ToLower(connection)
+
+		switch req.ProtoMinor {
+		case 0:
+			return connection == "keep-alive"
+		case 1:
+			return connection != "close"
+		}
+	}
+	return false
 }
 
 func dialWithDialer(dialer Dialer, network, addr string, tlsConfig *tls.Config) (net.Conn, error) {

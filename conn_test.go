@@ -22,14 +22,12 @@ func connServer(wg *sync.WaitGroup, network, addr string, t *testing.T) {
 	conn := NewConn(inner)
 
 	testPeek(conn, 11, t)
-	testPeek(conn, 6, t)
-	testRead(conn, 6, t)
-	testPeek(conn, 5, t)
-	testRead(conn, 5, t)
+	testRead(conn, 11, t)
 }
 
 func testPeek(conn *Conn, n int, t *testing.T) {
-	buf, err := conn.Peek(n)
+	buf := make([]byte, n)
+	_, err := conn.TeeReader().Read(buf)
 	if err != nil {
 		t.Fatal(err)
 	}

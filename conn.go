@@ -1,17 +1,46 @@
 package proxy
 
 import (
-	"bufio"
+	"bytes"
+	"io"
 	"net"
 )
 
 type Conn struct {
 	net.Conn
-	r *bufio.Reader
+	teeReader io.Reader
+	buf       *bytes.Buffer
 }
 
-func (c *Conn) Read(p []byte) (int, error)            { return c.r.Read(p) }
-func (c *Conn) Peek(n int) ([]byte, error)            { return c.r.Peek(n) }
-func (c *Conn) ReadString(delim byte) (string, error) { return c.r.ReadString(delim) }
+func (c *Conn) Read(p []byte) (int, error) {
+	total := 0
 
-func NewConn(inner net.Conn) *Conn { return &Conn{Conn: inner, r: bufio.NewReader(inner)} }
+	if c.buf.Len() > 0 {
+		n, _ := c.buf.Read(p)
+		total += n
+		if total == len(p) {
+			return total, nil
+		}
+	}
+
+	if total < len(p) {
+		n, err := c.Conn.Read(p[total:])
+		total += n
+		if err != nil {
+			return total, err
+		}
+	}
+
+	return total, nil
+}
+
+func (c *Conn) TeeReader() io.Reader { return c.teeReader }
+
+func NewConn(inner net.Conn) *Conn {
+	c := &Conn{
+		Conn: inner,
+		buf:  bytes.NewBuffer(nil),
+	}
+	c.teeReader = io.TeeReader(inner, c.buf)
+	return c
+}
