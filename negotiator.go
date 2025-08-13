@@ -35,6 +35,7 @@ func httpHandshake(ctx *Context) error {
 		return err
 	}
 
+	ctx.Req = req
 	ctx.DstHost = req.URL.Hostname()
 	ctx.DstPort = req.URL.Port()
 	if ctx.DstPort == "" {

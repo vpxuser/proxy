@@ -34,8 +34,6 @@ func (l *Listener) Serve() error {
 			continue
 		}
 
-		ctx.Infof("New connection from %s", inner.RemoteAddr())
-
 		ctx.Conn = inner.(*Conn)
 		go func() {
 			defer inner.Close()
@@ -46,8 +44,6 @@ func (l *Listener) Serve() error {
 					return
 				}
 			}
-
-			ctx.Debugf("Dispatching connection to %s:%s", ctx.DstHost, ctx.DstPort)
 
 			ctx.Dispatcher.Dispatch(ctx)
 		}()
