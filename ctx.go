@@ -2,10 +2,11 @@ package proxy
 
 import (
 	"context"
-	"github.com/rs/xid"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Context struct {
@@ -20,10 +21,12 @@ type Context struct {
 }
 
 func NewContext() *Context {
+	id := uuid.New().String()
+	id = strings.ReplaceAll(id, "-", "")
 	return &Context{
 		Context: context.Background(),
 		logger:  defaultCtxLogger,
-		Id:      xid.New().String(),
+		Id:      id[:16],
 	}
 }
 
