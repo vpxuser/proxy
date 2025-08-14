@@ -3,6 +3,7 @@ package proxy
 import (
 	"bufio"
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -32,13 +33,14 @@ func handleHttp(ctx *Context) {
 	}
 	defer proxyConn.Close()
 
-	reqReader := bufio.NewReader(ctx.Conn)
-	respReader := bufio.NewReader(proxyConn)
-
+	src := bufio.NewReader(ctx.Conn)
+	dst := bufio.NewReader(proxyConn)
 	for {
-		req, err := http.ReadRequest(reqReader)
+		req, err := http.ReadRequest(src)
 		if err != nil {
-			ctx.Error(err)
+			if err != io.EOF {
+				ctx.Error(err)
+			}
 			return
 		}
 
@@ -50,19 +52,26 @@ func handleHttp(ctx *Context) {
 
 			err := req.WriteProxy(proxyConn)
 			if err != nil {
-				ctx.Error(err)
+				if err != io.EOF {
+					ctx.Error(err)
+				}
 				return
 			}
 
-			resp, err = http.ReadResponse(respReader, req)
+			resp, err = http.ReadResponse(dst, req)
 			if err != nil {
-				ctx.Error(err)
+				if err != io.EOF {
+					ctx.Error(err)
+				}
 				return
 			}
 		}
 
-		if err := ctx.filterResp(resp, ctx).Write(ctx.Conn); err != nil {
-			ctx.Error(err)
+		err = ctx.filterResp(resp, ctx).Write(ctx.Conn)
+		if err != nil {
+			if err != io.EOF {
+				ctx.Error(err)
+			}
 			return
 		}
 		resp.Body.Close()

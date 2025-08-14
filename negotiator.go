@@ -29,7 +29,17 @@ var defaultNegotiator HandshakeFn = func(ctx *Context) error { return httpHandsh
 // httpHandshake handles HTTP CONNECT requests for tunneling HTTPS over proxy.
 // httpHandshake 处理 HTTP CONNECT 请求，用于通过代理建立 HTTPS 隧道。
 func httpHandshake(ctx *Context) error {
-	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
+	raw, err := ctx.Conn.Reader().Peek(3)
+	if err != nil {
+		return err
+	}
+
+	var req *http.Request
+	if string(raw) == http.MethodConnect[:3] {
+		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.Reader()))
+	} else {
+		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
+	}
 	if err != nil {
 		ctx.Error(err)
 		return err
@@ -48,12 +58,6 @@ func httpHandshake(ctx *Context) error {
 	}
 
 	if req.Method == http.MethodConnect {
-		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
-		if err != nil {
-			ctx.Error(err)
-			return err
-		}
-
 		resp := &http.Response{
 			StatusCode: http.StatusOK,
 			Status:     "Connection Established",
@@ -61,7 +65,7 @@ func httpHandshake(ctx *Context) error {
 			ProtoMinor: req.ProtoMinor,
 		}
 
-		err := resp.Write(ctx.Conn)
+		err = resp.Write(ctx.Conn)
 		if err != nil {
 			ctx.Error(err)
 			return err

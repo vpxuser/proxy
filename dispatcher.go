@@ -18,10 +18,9 @@ type DispatchFn func(*Context)
 func (f DispatchFn) Dispatch(ctx *Context) { f(ctx) }
 
 var defaultDispatcher DispatchFn = func(ctx *Context) {
-	buf := make([]byte, 3)
-	_, err := ctx.Conn.TeeReader().Read(buf)
+	raw, err := ctx.Conn.Reader().Peek(3)
 	if err == nil {
-		isTLS := buf[0] == 0x16 && buf[1] == 0x03
+		isTLS := raw[0] == 0x16 && raw[1] == 0x03
 		if isTLS {
 			serverName := ctx.DstHost
 			if !IsDomain(serverName) {
