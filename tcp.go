@@ -19,12 +19,13 @@ func (f HandleTcpFn) HandleTcp(ctx *Context) { f(ctx) }
 var defaultTcpHandler HandleTcpFn = func(ctx *Context) { handleTcp(ctx) }
 
 func handleTcp(ctx *Context) {
-	var tlsConfig *tls.Config
+	var tlsCfg *tls.Config
 	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
-		tlsConfig = &tls.Config{InsecureSkipVerify: true}
+		tlsCfg = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", net.JoinHostPort(ctx.DstHost, ctx.DstPort), tlsConfig)
+	dstAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
+	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", dstAddr, tlsCfg)
 	if err != nil {
 		ctx.Error(err)
 		return

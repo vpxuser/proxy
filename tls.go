@@ -33,7 +33,7 @@ func (f TLSConfigFn) From(san string) (*tls.Config, error) { return f(san) }
 // which generates leaf certificates signed by the CA for the specified SAN.
 // FromCA 使用 CA 证书和私钥返回一个 TLSConfigFn，
 // 会为指定的 SAN 签发由 CA 签名的服务端证书。
-func FromCA(cert *x509.Certificate, privateKey *rsa.PrivateKey) TLSConfigFn {
+func FromCA(cert *x509.Certificate, privateKey crypto.PrivateKey) TLSConfigFn {
 	return func(san string) (*tls.Config, error) {
 		return goproxy.TLSConfigFromCA(&tls.Certificate{
 			Certificate: [][]byte{cert.Raw},
