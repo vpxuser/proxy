@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"github.com/gobwas/ws"
 	"github.com/vpxuser/proxy"
 	mode "golang.org/x/net/proxy"
@@ -21,7 +22,7 @@ func main() {
 	}
 
 	cfg.WithOptions(
-		proxy.WithNegotiator(proxy.Socks5Negotiator),
+		//proxy.WithNegotiator(proxy.Socks5Negotiator),
 		proxy.WithTLSConfigFn(proxy.FromCA(Cert, Key)),
 		proxy.WithDialer(dialer),
 	)
@@ -31,7 +32,8 @@ func main() {
 		if err != nil {
 			ctx.Error(err)
 		}
-		ctx.Infof("\n%s", dump)
+		_, ok := ctx.Conn.Conn.(*tls.Conn)
+		ctx.Infof("是否为TLS：%v,\n%s", ok, dump)
 		return req, nil
 	})
 

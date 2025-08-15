@@ -18,13 +18,8 @@ type DispatchFn func(*Context)
 func (f DispatchFn) Dispatch(ctx *Context) { f(ctx) }
 
 var defaultDispatcher DispatchFn = func(ctx *Context) {
-	if ctx.Req.Method == http.MethodConnect {
-		raw, err := ctx.Conn.Reader().Peek(3)
-		if err != nil {
-			ctx.Error(err)
-			return
-		}
-
+	raw, err := ctx.Conn.Reader().Peek(3)
+	if err == nil {
 		if raw[0] == 0x16 && raw[1] == 0x03 {
 			serverName := ctx.DstHost
 			if !IsDomain(serverName) {
@@ -57,12 +52,11 @@ var defaultDispatcher DispatchFn = func(ctx *Context) {
 
 		ctx.Req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
 		if err != nil {
-			ctx.TcpHandler.HandleTcp(ctx)
+			ctx.Error(err)
 			return
 		}
 	}
 
-	//todo 确认是http情况下否还需要存储反向DNS解析记录PTR
 	if !IsDomain(ctx.DstHost) {
 		hostname, _, err := net.SplitHostPort(ctx.Req.Host)
 		if err != nil {
