@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	yml, err := os.ReadFile("config.yaml")
+	yml, err := os.ReadFile("examples/printer/config.yaml")
 	if err != nil {
 		proxy.Fatal(err)
 	}

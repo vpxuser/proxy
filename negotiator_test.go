@@ -26,12 +26,8 @@ func serverWitchTestCase(wg *sync.WaitGroup, network, addr string, t *testing.T,
 }
 
 func printAddrResult(t *testing.T, conn net.Conn) {
-	ctx := NewContext()
+	ctx := NewContext(ctxLogger, "test", nil)
 	ctx.Conn = NewConn(conn)
-	err := httpHandshake(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Logf("target addr: %s:%s", ctx.DstHost, ctx.DstPort)
 }
 

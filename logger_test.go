@@ -4,7 +4,7 @@ import "testing"
 
 func TestLogger(t *testing.T) {
 	SetLogLevel(TraceLevel)
-	ctx := NewContext()
+	ctx := NewContext(ctxLogger, "test", nil)
 	ctx.Debugf("hello world %d", 1)
 	ctx.Infof("hello world %d", 1)
 	ctx.Warnf("hello world %d", 1)

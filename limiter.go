@@ -14,7 +14,7 @@ type StdLimiter struct {
 	*semaphore.Weighted
 }
 
-func NewLimiter(n int64) Limiter { return &StdLimiter{semaphore.NewWeighted(n)} }
-
 func (l *StdLimiter) Acquire() { _ = l.Weighted.Acquire(context.Background(), 1) }
 func (l *StdLimiter) Release() { l.Weighted.Release(1) }
+
+func NewLimiter(n int64) Limiter { return &StdLimiter{semaphore.NewWeighted(n)} }

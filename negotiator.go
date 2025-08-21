@@ -1,10 +1,8 @@
 package proxy
 
 import (
-	"bufio"
 	"errors"
 	"net"
-	"net/http"
 	"strconv"
 )
 
@@ -22,65 +20,9 @@ type HandshakeFn func(*Context) error
 // Handshake 方法直接调用函数本体。
 func (f HandshakeFn) Handshake(ctx *Context) error { return f(ctx) }
 
-// defaultNegotiator is the default handshake handler, using HTTP CONNECT method.
-// defaultNegotiator 是默认的握手处理器，使用 HTTP CONNECT 方法。
-var defaultNegotiator HandshakeFn = func(ctx *Context) error { return httpHandshake(ctx) }
-
-// httpHandshake handles HTTP CONNECT requests for tunneling HTTPS over proxy.
-// httpHandshake 处理 HTTP CONNECT 请求，用于通过代理建立 HTTPS 隧道。
-func httpHandshake(ctx *Context) error {
-	raw, err := ctx.Conn.Reader().Peek(3)
-	if err != nil {
-		return err
-	}
-
-	var req *http.Request
-	if string(raw) == http.MethodConnect[:3] {
-		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.Reader()))
-	} else {
-		req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.TeeReader()))
-	}
-	if err != nil {
-		ctx.Error(err)
-		return err
-	}
-
-	ctx.Req = req
-	ctx.DstHost = req.URL.Hostname()
-	ctx.DstPort = req.URL.Port()
-	if ctx.DstPort == "" {
-		switch req.Method {
-		case http.MethodConnect:
-			ctx.DstPort = "443"
-		default:
-			ctx.DstPort = "80"
-		}
-	}
-
-	if req.Method == http.MethodConnect {
-		resp := &http.Response{
-			StatusCode: http.StatusOK,
-			Status:     "Connection Established",
-			ProtoMajor: req.ProtoMajor,
-			ProtoMinor: req.ProtoMinor,
-		}
-
-		err = resp.Write(ctx.Conn)
-		if err != nil {
-			ctx.Error(err)
-			return err
-		}
-	}
-	return nil
-}
-
-// Socks5Negotiator is a built-in SOCKS5 handshake handler.
-// Socks5Negotiator 是内置的 SOCKS5 握手处理器。
-var Socks5Negotiator HandshakeFn = func(ctx *Context) error { return socks5Handshake(ctx) }
-
-// socks5Handshake handles SOCKS5 protocol negotiation as per RFC 1928.
-// socks5Handshake 按照 RFC 1928 实现 SOCKS5 协议握手。
-func socks5Handshake(ctx *Context) error {
+// Socks5Negotiator handles SOCKS5 protocol negotiation as per RFC 1928.
+// Socks5Negotiator 按照 RFC 1928 实现 SOCKS5 协议握手。
+var Socks5Negotiator HandshakeFn = func(ctx *Context) error {
 	buf := make([]byte, 2)
 	if _, err := ctx.Conn.Read(buf); err != nil {
 		return err
@@ -120,7 +62,7 @@ func socks5Handshake(ctx *Context) error {
 
 	// Logging version and command
 	// 日志记录版本和命令字段
-	ctx.Tracef("Parsing SOCKS5 request: VER=0x%02X CMD=0x%02X", buf[0], buf[1])
+	ctx.Debugf("Parsing SOCKS5 request: VER=0x%02X CMD=0x%02X", buf[0], buf[1])
 
 	switch buf[3] {
 	case 0x01: // IPv4 address

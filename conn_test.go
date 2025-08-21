@@ -21,17 +21,18 @@ func connServer(wg *sync.WaitGroup, network, addr string, t *testing.T) {
 
 	conn := NewConn(inner)
 
+	testTee(conn, 11, t)
 	testPeek(conn, 11, t)
 	testRead(conn, 11, t)
 }
 
-func testPeek(conn *Conn, n int, t *testing.T) {
+func testTee(conn *Conn, n int, t *testing.T) {
 	buf := make([]byte, n)
-	_, err := conn.TeeReader().Read(buf)
+	_, err := conn.GetTeeReader().Read(buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("peek buffer length: %d , data: %s", len(buf), buf)
+	t.Logf("tee buffer length: %d , data: %s", len(buf), buf)
 }
 
 func testRead(conn *Conn, n int, t *testing.T) {
@@ -41,6 +42,14 @@ func testRead(conn *Conn, n int, t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("read buffer length: %d , data: %s", len(buf[:n]), buf[:n])
+}
+
+func testPeek(conn *Conn, n int, t *testing.T) {
+	buf, err := conn.Peek(n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("peek buffer length: %d , data: %s", len(buf), buf)
 }
 
 func client(wg *sync.WaitGroup, network, addr string, t *testing.T) {

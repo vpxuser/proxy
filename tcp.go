@@ -1,41 +1,40 @@
 package proxy
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"io"
 	"net"
+	"sync"
 )
 
 type TcpHandler interface {
-	HandleTcp(*Context)
+	HandleTcp(*Context) error
 }
 
-type HandleTcpFn func(*Context)
+type HandleTcpFn func(*Context) error
 
-func (f HandleTcpFn) HandleTcp(ctx *Context) { f(ctx) }
+func (f HandleTcpFn) HandleTcp(ctx *Context) error { return f(ctx) }
 
-var defaultTcpHandler HandleTcpFn = func(ctx *Context) { handleTcp(ctx) }
-
-func handleTcp(ctx *Context) {
-	var tlsCfg *tls.Config
-	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
-		tlsCfg = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	dstAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
-	proxyConn, err := dialWithDialer(ctx.dialer, "tcp", dstAddr, tlsCfg)
+var defaultTcpHandler HandleTcpFn = func(ctx *Context) error {
+	proxyAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
+	proxyConn, err := ctx.GetDialer().Dial("tcp", proxyAddr)
 	if err != nil {
 		ctx.Error(err)
-		return
+		return err
 	}
-	defer proxyConn.Close()
 
-	c, cancel := context.WithCancel(context.Background())
-	go tcpCopy(proxyConn, ctx.Conn, ctx, c, cancel)
-	go tcpCopy(ctx.Conn, proxyConn, ctx, c, cancel)
-	<-c.Done()
+	defer proxyConn.Close()
+	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
+		proxyConn = tls.Client(proxyConn, ctx.ClientTLSConfig)
+	}
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+	go tcpCopy(wg, proxyConn, ctx.Conn, ctx)
+	go tcpCopy(wg, ctx.Conn, proxyConn, ctx)
+	wg.Wait()
+	return io.EOF
 }
 
 type ctxWriter struct {
@@ -48,12 +47,13 @@ func (w *ctxWriter) Write(p []byte) (int, error) {
 	return len(p), err
 }
 
-func tcpCopy(dst, src net.Conn, ctx *Context, c context.Context, cancel context.CancelFunc) {
-	if _, err := io.Copy(&ctxWriter{dst, ctx}, src); err != nil {
-		if c.Err() == nil && !errors.Is(err, io.EOF) {
-			ctx.Error(err)
-			cancel()
-		}
-		return
+func tcpCopy(wg *sync.WaitGroup, dst, src net.Conn, ctx *Context) {
+	defer wg.Done()
+	cw := &ctxWriter{dst, ctx}
+	_, err := io.Copy(cw, src)
+	if err != nil &&
+		!errors.Is(err, io.EOF) {
+		ctx.Error(err)
 	}
+	return
 }

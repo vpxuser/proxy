@@ -134,7 +134,7 @@ var defaultLogger = func() *Logrus {
 	return &Logrus{logger}
 }()
 
-func SetLogLevel(level Level) { defaultLogger.SetLevel(level); defaultCtxLogger.SetLevel(level) }
+func SetLogLevel(level Level) { defaultLogger.SetLevel(level); ctxLogger.SetLevel(level) }
 
 func Panic(args ...any) { defaultLogger.Panic(args...) }
 func Fatal(args ...any) { defaultLogger.Fatal(args...) }

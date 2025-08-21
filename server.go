@@ -1,51 +1,51 @@
 package proxy
 
 import (
+	"github.com/google/uuid"
 	"net"
+	"strings"
 )
 
-func ListenAndServe(network, addr string, cfg *Config) error {
-	inner, err := net.Listen(network, addr)
+func ListenAndServe(addr string, cfg *Config) error {
+	inner, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	Infof("Proxy server started on %s", addr)
 	return Serve(inner, cfg)
 }
 
-func Serve(inner net.Listener, cfg *Config) error {
-	return NewListener(inner, cfg).Serve()
+func Serve(ln net.Listener, cfg *Config) error {
+	return NewListener(ln, cfg).Serve()
 }
 
-func (l *Listener) Serve() error {
-	defer l.Close()
-
+func (ln *Listener) Serve() error {
+	defer ln.Close()
 	for {
-		if limiter := l.cfg.limiter; limiter != nil {
-			l.cfg.limiter.Acquire()
-		}
-
-		ctx := NewContext()
-		ctx.Config = l.cfg
-
-		inner, err := l.Accept()
+		id := uuid.New().String()
+		id = strings.ReplaceAll(id, "-", "")
+		ctx := NewContext(ctxLogger, id[:16], ln.cfg)
+		inner, err := ln.Accept()
 		if err != nil {
 			ctx.Error(err)
 			continue
 		}
-
-		ctx.Conn = inner.(*Conn)
+		ctx.Conn = NewConn(inner)
 		go func() {
-			defer inner.Close()
-
-			if ctx.Negotiator != nil {
-				if err = ctx.Negotiator.Handshake(ctx); err != nil {
+			defer ctx.Conn.Close()
+			if ctx.negotiator != nil { //代理协议握手
+				err = ctx.negotiator.Handshake(ctx)
+				if err != nil {
 					ctx.Error(err)
 					return
 				}
 			}
 
-			ctx.Dispatcher.Dispatch(ctx)
+			for { //执行默认调度器，直到结束
+				err = ctx.Dispatcher.Dispatch(ctx)
+				if err != nil {
+					return
+				}
+			}
 		}()
 	}
 }

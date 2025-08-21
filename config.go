@@ -1,70 +1,71 @@
 package proxy
 
+import (
+	"crypto/tls"
+	"golang.org/x/net/proxy"
+	"net"
+	"net/http"
+	"net/url"
+	"time"
+)
+
 type Config struct {
-	limiter      Limiter
-	Negotiator   Negotiator
-	Resolver     Resolver
-	Dispatcher   Dispatcher
-	TLSConfig    TLSConfig
-	HttpHandler  HttpHandler
-	WsHandler    WsHandler
-	TcpHandler   TcpHandler
-	dialer       Dialer
-	DefaultSAN   string
-	reqHandlers  []ReqHandlerFn
-	respHandlers []RespHandlerFn
-	wsHandlers   []WsHandlerFn
-	rawHandlers  []RawHandlerFn
+	limiter         Limiter
+	negotiator      Negotiator
+	Resolver        Resolver
+	Dispatcher      Dispatcher
+	TLSConfig       TLSConfig
+	HttpHandler     HttpHandler
+	WsHandler       WsHandler
+	TcpHandler      TcpHandler
+	client          *http.Client
+	forward         proxy.Dialer
+	ClientTLSConfig *tls.Config
+	DefaultSAN      string
+	reqHandlers     []ReqHandlerFn
+	respHandlers    []RespHandlerFn
+	wsHandlers      []WsHandlerFn
+	rawHandlers     []RawHandlerFn
+}
+
+func (c *Config) SetLimiter(l Limiter)       { c.limiter = l }
+func (c *Config) SetNegotiator(n Negotiator) { c.negotiator = n }
+func (c *Config) GetClient() *http.Client    { return c.client }
+func (c *Config) GetDialer() proxy.Dialer    { return c.forward }
+
+func (c *Config) SetProxy(rawURL string) error {
+	//解析url
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return err
+	}
+
+	//为http客户端设置代理
+	transport := c.client.Transport.(*http.Transport)
+	transport.Proxy = http.ProxyURL(u)
+
+	//为tcp拨号器设置代理
+	c.forward, err = proxy.FromURL(u, c.forward)
+	return err
 }
 
 func NewConfig() *Config {
+	httpClient := http.DefaultClient
+	if httpClient.Transport == nil {
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+			ExpectContinueTimeout: 5 * time.Second,
+		}
+	}
+
 	return &Config{
-		Negotiator:  defaultNegotiator,
-		Resolver:    defaultResolver,
-		Dispatcher:  defaultDispatcher,
-		HttpHandler: defaultHttpHandler,
-		WsHandler:   defaultWsHandler,
-		TcpHandler:  defaultTcpHandler,
+		Resolver:        defaultResolver,
+		Dispatcher:      defaultDispatcher,
+		HttpHandler:     defaultHttpHandler,
+		WsHandler:       defaultWsHandler,
+		TcpHandler:      defaultTcpHandler,
+		forward:         new(net.Dialer),
+		client:          httpClient,
+		ClientTLSConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-}
-
-type ConfigOption func(*Config)
-
-func (c *Config) WithOptions(opts ...ConfigOption) *Config {
-	for _, opt := range opts {
-		opt(c)
-	}
-	return c
-}
-
-func WithLimiter(limiter Limiter) ConfigOption {
-	return func(c *Config) { c.limiter = limiter }
-}
-
-func WithNegotiator(negotiator Negotiator) ConfigOption {
-	return func(c *Config) { c.Negotiator = negotiator }
-}
-
-func WithDispatcher(dispatcher Dispatcher) ConfigOption {
-	return func(c *Config) { c.Dispatcher = dispatcher }
-}
-
-func WithTLSConfigFn(tlsConfig TLSConfig) ConfigOption {
-	return func(c *Config) { c.TLSConfig = tlsConfig }
-}
-
-func WithHttpHandler(httpHandler HttpHandler) ConfigOption {
-	return func(c *Config) { c.HttpHandler = httpHandler }
-}
-
-func WithWsHandler(wsHandler WsHandler) ConfigOption {
-	return func(c *Config) { c.WsHandler = wsHandler }
-}
-
-func WithTcpHandler(tcpHandler TcpHandler) ConfigOption {
-	return func(c *Config) { c.TcpHandler = tcpHandler }
-}
-
-func WithDialer(dialer Dialer) ConfigOption {
-	return func(c *Config) { c.dialer = dialer }
 }
