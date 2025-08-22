@@ -20,52 +20,56 @@ func (f HandleHttpFn) HandleHttp(ctx *Context) error { return f(ctx) }
 var ErrNilRequest = errors.New("nil request")
 
 var defaultHttpHandler HandleHttpFn = func(ctx *Context) error {
-	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn))
-	if err != nil {
-		return handleEOF(err, ctx)
-	}
-
-	req, resp := ctx.filterReq(req, ctx)
-	if resp == nil {
-		if req == nil {
-			return handleEOF(ErrNilRequest, ctx)
+	reader := bufio.NewReader(ctx.Conn)
+	for {
+		req, err := http.ReadRequest(reader)
+		if err != nil {
+			return handleEOF(err, ctx)
 		}
 
-		if ctx.DstConn == nil {
-			ctx.DstConn, err = ctx.GetDialer().Dial("tcp",
-				net.JoinHostPort(ctx.DstHost, ctx.DstPort))
+		req, resp := ctx.filterReq(req, ctx)
+		if resp == nil {
+			if req == nil {
+				ctx.Error(ErrNilRequest)
+				return ErrNilRequest
+			}
+
+			if ctx.DstConn == nil {
+				proxyAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
+				ctx.DstConn, err = ctx.Dialer.Dial("tcp", proxyAddr)
+				if err != nil {
+					ctx.Error(err)
+					return err
+				}
+
+				if ctx.Conn.IsTLS() {
+					ctx.DstConn = tls.Client(ctx.DstConn, ctx.ClientTLSConfig)
+				}
+			}
+
+			err := req.Write(ctx.DstConn)
 			if err != nil {
 				return handleEOF(err, ctx)
 			}
 
-			if ctx.Conn.IsTLS() {
-				ctx.DstConn = tls.Client(ctx.DstConn, ctx.ClientTLSConfig)
+			resp, err = http.ReadResponse(bufio.NewReader(ctx.DstConn), req)
+			if err != nil {
+				return handleEOF(err, ctx)
 			}
 		}
 
-		if err := req.Write(ctx.DstConn); err != nil {
-			ctx.DstConn.Close()
-			return handleEOF(err, ctx)
-		}
-
-		resp, err = http.ReadResponse(bufio.NewReader(ctx.DstConn), req)
+		err = ctx.filterResp(resp, ctx).Write(ctx.Conn)
 		if err != nil {
-			ctx.DstConn.Close()
-			return handleEOF(err, ctx)
+			ctx.Error(err)
+			return err
 		}
 	}
-
-	err = ctx.filterResp(resp, ctx).Write(ctx.Conn)
-	if err != nil {
-		return handleEOF(err, ctx)
-	}
-
-	return nil
 }
 
 func handleEOF(err error, cxt *Context) error {
 	if !errors.Is(err, io.EOF) &&
 		!errors.Is(err, io.ErrUnexpectedEOF) {
+		//if !errors.Is(err, io.EOF) {
 		cxt.Error(err)
 	}
 	return err

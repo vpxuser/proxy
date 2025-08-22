@@ -10,15 +10,14 @@ import (
 func main() {
 	proxy.SetLogLevel(proxy.TraceLevel)
 
-	cfg := proxy.NewConfig()
-	cfg.DefaultSAN = Cfg.SAN
+	cfg := proxy.NewConfig(proxy.FromCA(Cert, Key))
+	cfg.DefaultSNI = Cfg.SAN
+	cfg.ClientTLSConfig.InsecureSkipVerify = true
 
 	//dialer, err := proxy.FromURL(Cfg.Proxy, mode.Direct)
 	//if err != nil {
 	//	proxy.Fatal(err)
 	//}
-
-	cfg.TLSConfig = proxy.FromCA(Cert, Key)
 
 	cfg.WithReqMatcher().Handle(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
 		dump, err := httputil.DumpRequest(req, true)

@@ -1,8 +1,11 @@
 package proxy
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 )
 
@@ -19,6 +22,42 @@ type HandshakeFn func(*Context) error
 // Handshake calls the function itself.
 // Handshake 方法直接调用函数本体。
 func (f HandshakeFn) Handshake(ctx *Context) error { return f(ctx) }
+
+var HttpNegotiator HandshakeFn = func(ctx *Context) error {
+	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn.GetTeeReader()))
+	if err != nil {
+		ctx.Error(err)
+		return err
+	}
+
+	ctx.DstHost = req.URL.Hostname()
+	ctx.DstPort = req.URL.Port()
+	if ctx.DstPort == "" {
+		if req.Method == http.MethodConnect {
+			ctx.DstPort = "443"
+		} else {
+			ctx.DstPort = "80"
+		}
+	}
+
+	if req.Method == http.MethodConnect {
+		_, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
+		if err != nil {
+			ctx.Error(err)
+			return err
+		}
+
+		status := "Connection established"
+		resp := fmt.Sprintf("%s %d %s\r\n\r\n",
+			req.Proto, http.StatusOK, status)
+		_, err = ctx.Conn.Write([]byte(resp))
+		if err != nil {
+			ctx.Error(err)
+			return err
+		}
+	}
+	return nil
+}
 
 // Socks5Negotiator handles SOCKS5 protocol negotiation as per RFC 1928.
 // Socks5Negotiator 按照 RFC 1928 实现 SOCKS5 协议握手。

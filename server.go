@@ -32,20 +32,14 @@ func (ln *Listener) Serve() error {
 		ctx.Conn = NewConn(inner)
 		go func() {
 			defer ctx.Conn.Close()
-			if ctx.negotiator != nil { //代理协议握手
-				err = ctx.negotiator.Handshake(ctx)
+			if ctx.Negotiator != nil { //代理协议握手
+				err = ctx.Negotiator.Handshake(ctx)
 				if err != nil {
 					ctx.Error(err)
 					return
 				}
 			}
-
-			for { //执行默认调度器，直到结束
-				err = ctx.Dispatcher.Dispatch(ctx)
-				if err != nil {
-					return
-				}
-			}
+			_ = ctx.Dispatcher.Dispatch(ctx)
 		}()
 	}
 }

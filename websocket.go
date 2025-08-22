@@ -33,7 +33,7 @@ var defaultWsHandler HandleWsFn = func(ctx *Context) error {
 	// Dial to the target WebSocket server.
 	// 拨号连接目标 WebSocket 服务端。
 	proxyAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
-	proxyConn, err := ctx.GetDialer().Dial("tcp", proxyAddr)
+	proxyConn, err := ctx.Dialer.Dial("tcp", proxyAddr)
 	if err != nil {
 		ctx.Error(err)
 		return err
@@ -42,7 +42,7 @@ var defaultWsHandler HandleWsFn = func(ctx *Context) error {
 
 	// Check if the client connection is already TLS
 	// 如果客户端连接已经是 TLS（HTTPS 请求）
-	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
+	if ctx.Conn.IsTLS() {
 		// Wrap the upstream connection with TLS using ClientTLSConfig
 		// 使用 ctx.ClientTLSConfig 在上游连接上建立 TLS 隧道
 		proxyConn = tls.Client(proxyConn, ctx.ClientTLSConfig)
@@ -84,7 +84,7 @@ var defaultWsHandler HandleWsFn = func(ctx *Context) error {
 	go wsCopy(wg, proxyConn, ctx.Conn, ctx)
 	go wsCopy(wg, ctx.Conn, proxyConn, ctx)
 	wg.Wait()
-	return io.EOF
+	return nil
 }
 
 // wsCopy reads WebSocket frames from src and writes them to dst,

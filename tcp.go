@@ -18,14 +18,14 @@ func (f HandleTcpFn) HandleTcp(ctx *Context) error { return f(ctx) }
 
 var defaultTcpHandler HandleTcpFn = func(ctx *Context) error {
 	proxyAddr := net.JoinHostPort(ctx.DstHost, ctx.DstPort)
-	proxyConn, err := ctx.GetDialer().Dial("tcp", proxyAddr)
+	proxyConn, err := ctx.Dialer.Dial("tcp", proxyAddr)
 	if err != nil {
 		ctx.Error(err)
 		return err
 	}
-
 	defer proxyConn.Close()
-	if _, ok := ctx.Conn.Conn.(*tls.Conn); ok {
+
+	if ctx.Conn.IsTLS() {
 		proxyConn = tls.Client(proxyConn, ctx.ClientTLSConfig)
 	}
 
@@ -34,7 +34,7 @@ var defaultTcpHandler HandleTcpFn = func(ctx *Context) error {
 	go tcpCopy(wg, proxyConn, ctx.Conn, ctx)
 	go tcpCopy(wg, ctx.Conn, proxyConn, ctx)
 	wg.Wait()
-	return io.EOF
+	return nil
 }
 
 type ctxWriter struct {

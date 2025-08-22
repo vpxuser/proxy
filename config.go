@@ -4,68 +4,36 @@ import (
 	"crypto/tls"
 	"golang.org/x/net/proxy"
 	"net"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 type Config struct {
-	limiter         Limiter
-	negotiator      Negotiator
-	Resolver        Resolver
-	Dispatcher      Dispatcher
-	TLSConfig       TLSConfig
-	HttpHandler     HttpHandler
-	WsHandler       WsHandler
-	TcpHandler      TcpHandler
-	client          *http.Client
-	forward         proxy.Dialer
-	ClientTLSConfig *tls.Config
-	DefaultSAN      string
-	reqHandlers     []ReqHandlerFn
-	respHandlers    []RespHandlerFn
-	wsHandlers      []WsHandlerFn
-	rawHandlers     []RawHandlerFn
+	Limiter         Limiter         // 限速器（可选）
+	Negotiator      Negotiator      // 代理协商（HTTP、SOCKS5）
+	Resolver        Resolver        // 域名解析器
+	Dispatcher      Dispatcher      // 请求分发器
+	DefaultSNI      string          // 默认 SNI
+	TLSConfig       TLSConfig       // TLS 配置回调函数
+	HttpHandler     HttpHandler     // HTTP 请求处理
+	WsHandler       WsHandler       // WebSocket 处理
+	TcpHandler      TcpHandler      // TCP 处理
+	Dialer          proxy.Dialer    // 连接拨号器（可叠加代理）
+	ClientTLSConfig *tls.Config     // 客户端 TLS 配置
+	reqHandlers     []ReqHandlerFn  // 请求处理链
+	respHandlers    []RespHandlerFn // 响应处理链
+	wsHandlers      []WsHandlerFn   // WS 处理链
+	rawHandlers     []RawHandlerFn  // 原始数据处理链
 }
 
-func (c *Config) SetLimiter(l Limiter)       { c.limiter = l }
-func (c *Config) SetNegotiator(n Negotiator) { c.negotiator = n }
-func (c *Config) GetClient() *http.Client    { return c.client }
-func (c *Config) GetDialer() proxy.Dialer    { return c.forward }
-
-func (c *Config) SetProxy(rawURL string) error {
-	//解析url
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return err
-	}
-
-	//为http客户端设置代理
-	transport := c.client.Transport.(*http.Transport)
-	transport.Proxy = http.ProxyURL(u)
-
-	//为tcp拨号器设置代理
-	c.forward, err = proxy.FromURL(u, c.forward)
-	return err
-}
-
-func NewConfig() *Config {
-	httpClient := http.DefaultClient
-	if httpClient.Transport == nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
-			ExpectContinueTimeout: 5 * time.Second,
-		}
-	}
-
+func NewConfig(tlsConfigFn TLSConfig) *Config {
 	return &Config{
+		Negotiator:      HttpNegotiator,
 		Resolver:        defaultResolver,
 		Dispatcher:      defaultDispatcher,
+		TLSConfig:       tlsConfigFn,
 		HttpHandler:     defaultHttpHandler,
 		WsHandler:       defaultWsHandler,
 		TcpHandler:      defaultTcpHandler,
-		forward:         new(net.Dialer),
-		client:          httpClient,
-		ClientTLSConfig: &tls.Config{InsecureSkipVerify: true},
+		Dialer:          new(net.Dialer),
+		ClientTLSConfig: new(tls.Config),
 	}
 }
