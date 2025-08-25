@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"crypto/tls"
-	"errors"
 	"io"
 	"net"
 	"sync"
@@ -51,8 +50,7 @@ func tcpCopy(wg *sync.WaitGroup, dst, src net.Conn, ctx *Context) {
 	defer wg.Done()
 	cw := &ctxWriter{dst, ctx}
 	_, err := io.Copy(cw, src)
-	if err != nil &&
-		!errors.Is(err, io.EOF) {
+	if err != nil {
 		ctx.Error(err)
 	}
 	return

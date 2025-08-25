@@ -21,9 +21,12 @@ func connServer(wg *sync.WaitGroup, network, addr string, t *testing.T) {
 
 	conn := NewConn(inner)
 
-	testTee(conn, 11, t)
-	testPeek(conn, 11, t)
-	testRead(conn, 11, t)
+	testPeek(conn, 6, t)
+	testTee(conn, 6, t)
+	testRead(conn, 6, t)
+	testPeek(conn, 5, t)
+	testTee(conn, 5, t)
+	testRead(conn, 5, t)
 }
 
 func testTee(conn *Conn, n int, t *testing.T) {

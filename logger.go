@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/kataras/pio"
+	pio "github.com/kataras/pio"
 	"github.com/sirupsen/logrus"
 	"os"
 	"path"

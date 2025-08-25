@@ -30,16 +30,6 @@ var HttpNegotiator HandshakeFn = func(ctx *Context) error {
 		return err
 	}
 
-	ctx.DstHost = req.URL.Hostname()
-	ctx.DstPort = req.URL.Port()
-	if ctx.DstPort == "" {
-		if req.Method == http.MethodConnect {
-			ctx.DstPort = "443"
-		} else {
-			ctx.DstPort = "80"
-		}
-	}
-
 	if req.Method == http.MethodConnect {
 		_, err = http.ReadRequest(bufio.NewReader(ctx.Conn))
 		if err != nil {
@@ -47,13 +37,24 @@ var HttpNegotiator HandshakeFn = func(ctx *Context) error {
 			return err
 		}
 
-		status := "Connection established"
+		status := "Connection Established"
 		resp := fmt.Sprintf("%s %d %s\r\n\r\n",
 			req.Proto, http.StatusOK, status)
 		_, err = ctx.Conn.Write([]byte(resp))
 		if err != nil {
 			ctx.Error(err)
 			return err
+		}
+	}
+
+	ctx.DstHost = req.URL.Hostname()
+	ctx.DstPort = req.URL.Port()
+	if ctx.DstPort == "" {
+		switch req.Method {
+		case http.MethodConnect:
+			ctx.DstPort = "443"
+		default:
+			ctx.DstPort = "80"
 		}
 	}
 	return nil

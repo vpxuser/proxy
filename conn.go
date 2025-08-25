@@ -17,10 +17,7 @@ func (c *Conn) Read(p []byte) (int, error) {
 	n, err := c.buf.Read(p)
 	if err == io.EOF {
 		m, err := c.Conn.Read(p[n:])
-		n += m
-		if err != nil {
-			return n, err
-		}
+		return n + m, err
 	}
 	return n, err
 }
@@ -52,13 +49,12 @@ type teeReader struct {
 }
 
 func (r *teeReader) Read(p []byte) (int, error) {
-	copy(p, r.buf.Bytes())
-	bufLen := r.buf.Len()
-	if len(p) > bufLen {
-		n, err := io.TeeReader(r.Reader, r.buf).Read(p[bufLen:])
-		return n + bufLen, err
+	n := copy(p, r.buf.Bytes())
+	if n < len(p) {
+		m, err := io.TeeReader(r.Reader, r.buf).Read(p[n:])
+		return n + m, err
 	}
-	return bufLen, nil
+	return n, nil
 }
 
 func NewConn(inner net.Conn) *Conn {

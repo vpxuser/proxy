@@ -7,6 +7,81 @@ import (
 	"net/http/httputil"
 )
 
+//func main() {
+//	proxy.SetLogLevel(proxy.TraceLevel)
+//	listen, err := net.Listen("tcp", ":8084")
+//	if err != nil {
+//		proxy.Fatal(err)
+//		return
+//	}
+//	defer listen.Close()
+//	for {
+//		inner, err := listen.Accept()
+//		if err != nil {
+//			proxy.Error(err)
+//			continue
+//		}
+//		client := proxy.NewConn(inner)
+//		//client := inner
+//		go func() {
+//			req, err := http.ReadRequest(bufio.NewReader(client))
+//			if err != nil {
+//				proxy.Error(err)
+//				return
+//			}
+//
+//			if req.Method == http.MethodConnect {
+//				status := "Connection Established"
+//				resp := fmt.Sprintf("%s %d %s\r\n\r\n",
+//					req.Proto, http.StatusOK, status)
+//				_, err = client.Write([]byte(resp))
+//				if err != nil {
+//					proxy.Error(err)
+//					return
+//				}
+//			}
+//
+//			dstHost := req.URL.Hostname()
+//			dstPort := req.URL.Port()
+//			if dstPort == "" {
+//				switch req.Method {
+//				case http.MethodConnect:
+//					dstPort = "443"
+//				default:
+//					dstPort = "80"
+//				}
+//			}
+//
+//			dstConn, err := net.Dial("tcp", dstHost+":"+dstPort)
+//			if err != nil {
+//				proxy.Error(err)
+//				return
+//			}
+//			defer dstConn.Close()
+//
+//			if req.Method != http.MethodConnect {
+//				err := req.Write(dstConn)
+//				if err != nil {
+//					proxy.Error(err)
+//					return
+//				}
+//			}
+//
+//			wg := new(sync.WaitGroup)
+//			cp := func(wg *sync.WaitGroup, dst, src net.Conn, str string) {
+//				defer wg.Done()
+//				n, err := io.Copy(dst, src)
+//				proxy.Errorf("%s %d %v", str, n, err)
+//			}
+//
+//			wg.Add(2)
+//			go cp(wg, dstConn, client, fmt.Sprintf("%s => %s:%s", client.RemoteAddr(), dstHost, dstPort))
+//			go cp(wg, client, dstConn, fmt.Sprintf("%s:%s => %s", dstHost, dstPort, client.RemoteAddr()))
+//			wg.Wait()
+//		}()
+//	}
+//}
+
 func main() {
 	proxy.SetLogLevel(proxy.TraceLevel)
 
@@ -14,10 +89,7 @@ func main() {
 	cfg.DefaultSNI = Cfg.SAN
 	cfg.ClientTLSConfig.InsecureSkipVerify = true
 
-	//dialer, err := proxy.FromURL(Cfg.Proxy, mode.Direct)
-	//if err != nil {
-	//	proxy.Fatal(err)
-	//}
+	//cfg.Dispatcher = DebugHandler
 
 	cfg.WithReqMatcher().Handle(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
 		dump, err := httputil.DumpRequest(req, true)
@@ -52,4 +124,29 @@ func main() {
 	if err := proxy.ListenAndServe(net.JoinHostPort(Cfg.Host, Cfg.Port), cfg); err != nil {
 		proxy.Fatal(err)
 	}
+}
+
+var DebugHandler proxy.DispatchFn = func(ctx *proxy.Context) error {
+	return ctx.TcpHandler.HandleTcp(ctx)
+
+	//dstConn, err := net.Dial("tcp", ctx.DstHost+":"+ctx.DstPort)
+	//if err != nil {
+	//	ctx.Error(err)
+	//	return err
+	//}
+	//defer dstConn.Close()
+	//
+	//wg := new(sync.WaitGroup)
+	//cp := func(dst, src net.Conn, str string) {
+	//	defer wg.Done()
+	//	n, err := io.Copy(dst, io.TeeReader(src, os.Stdout))
+	//	ctx.Errorf("%s %d %v", str, n, err)
+	//}
+	//
+	//wg.Add(2)
+	//go cp(dstConn, ctx.Conn, fmt.Sprintf("%s => %s:%s", ctx.Conn.RemoteAddr(), ctx.DstHost, ctx.DstPort))
+	//go cp(ctx.Conn, dstConn, fmt.Sprintf("%s:%s => %s", ctx.DstHost, ctx.DstPort, ctx.Conn.RemoteAddr()))
+	//wg.Wait()
+
+	//return nil
 }
