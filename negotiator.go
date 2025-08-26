@@ -24,7 +24,7 @@ type HandshakeFn func(*Context) error
 func (f HandshakeFn) Handshake(ctx *Context) error { return f(ctx) }
 
 var HttpNegotiator HandshakeFn = func(ctx *Context) error {
-	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn.GetTeeReader()))
+	req, err := http.ReadRequest(bufio.NewReader(ctx.Conn.PeekRd))
 	if err != nil {
 		ctx.Error(err)
 		return err

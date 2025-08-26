@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"io"
@@ -9,71 +10,58 @@ import (
 
 type Conn struct {
 	net.Conn
-	buf       *bytes.Buffer
-	teeReader io.Reader
+	PeekRd *PeekReader
 }
 
 func (c *Conn) Read(p []byte) (int, error) {
-	n, err := c.buf.Read(p)
-	if err == io.EOF {
-		m, err := c.Conn.Read(p[n:])
-		return n + m, err
-	}
-	return n, err
+	multiRd := io.MultiReader(c.PeekRd.buf, c.Conn)
+	return multiRd.Read(p)
 }
 
 func (c *Conn) Peek(n int) ([]byte, error) {
 	buf := make([]byte, n)
-	m := copy(buf, c.buf.Bytes())
-	for m < n {
-		readN, err := c.Conn.Read(buf[m:])
+	total := copy(buf, c.PeekRd.buf.Bytes())
+	for total < n {
+		readN, err := c.Conn.Read(buf[total:])
 		if readN > 0 {
-			c.buf.Write(buf[m : m+readN])
-			m += readN
+			c.PeekRd.buf.Write(buf[total : total+readN])
+			total += readN
 		}
 		if err != nil || readN == 0 {
-			if err == io.EOF && m > 0 {
+			if err == io.EOF && total > 0 {
 				break
 			}
-			return buf[:m], err
+			return buf[:total], err
 		}
 	}
-	return buf[:m], nil
+	return buf[:total], nil
 }
-
-func (c *Conn) GetTeeReader() io.Reader { return c.teeReader }
 
 func (c *Conn) IsTLS() bool {
 	_, ok := c.Conn.(*tls.Conn)
 	return ok
 }
 
-type teeReader struct {
-	io.Reader
-	buf *bytes.Buffer
-}
-
-func (r *teeReader) Read(p []byte) (int, error) {
-	n := copy(p, r.buf.Bytes())
-	if n < len(p) {
-		m, err := r.Reader.Read(p[n:])
-		if m > 0 {
-			r.buf.Write(p[n : n+m])
-			n += m
-		}
-		return n, err
-	}
-	return n, nil
-}
-
 func NewConn(inner net.Conn) *Conn {
-	reader := &teeReader{
-		Reader: inner,
-		buf:    bytes.NewBuffer(nil),
-	}
 	return &Conn{
-		Conn:      inner,
-		buf:       reader.buf,
-		teeReader: reader,
+		Conn: inner,
+		PeekRd: &PeekReader{
+			rd:    inner,
+			buf:   bytes.NewBuffer(nil),
+			bufRd: bufio.NewReader(inner),
+		},
 	}
+}
+
+type PeekReader struct {
+	rd    io.Reader
+	buf   *bytes.Buffer
+	bufRd *bufio.Reader
+}
+
+func (r *PeekReader) Read(p []byte) (int, error) {
+	bytesRd := bytes.NewReader(r.buf.Bytes())
+	teeRd := io.TeeReader(r.rd, r.buf)
+	multiRd := io.MultiReader(bytesRd, teeRd)
+	return multiRd.Read(p)
 }

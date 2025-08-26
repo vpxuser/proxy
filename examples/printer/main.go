@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/vpxuser/proxy"
 	"io"
@@ -131,7 +132,16 @@ func main() {
 }
 
 var tcpForward proxy.DispatchFn = func(ctx *proxy.Context) error {
-	return ctx.TcpHandler.HandleTcp(ctx)
+	_, err := http.ReadRequest(bufio.NewReader(ctx.Conn.PeekRd))
+	if err != nil {
+		raw, err := ctx.Conn.Peek(2)
+		if err != nil && len(raw) > 0 {
+			ctx.Error(err)
+			return err
+		}
+		return ctx.TcpHandler.HandleTcp(ctx)
+	}
+	return ctx.HttpHandler.HandleHttp(ctx)
 }
 
 var ioCopyForward proxy.DispatchFn = func(ctx *proxy.Context) error {

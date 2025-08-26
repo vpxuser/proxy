@@ -19,7 +19,7 @@ func (f DispatchFn) Dispatch(ctx *Context) error { return f(ctx) }
 // 调度器，基于明文TCP进行调度
 var defaultDispatcher DispatchFn = func(ctx *Context) error {
 	//识别TCP流数据是否为http
-	req, parseErr := http.ReadRequest(bufio.NewReader(ctx.Conn.GetTeeReader()))
+	req, parseErr := http.ReadRequest(bufio.NewReader(ctx.Conn.PeekRd))
 	if parseErr != nil {
 		//预读取数据，默认预读取1024字节
 		raw, err := ctx.Conn.Peek(2)
@@ -60,7 +60,7 @@ var defaultDispatcher DispatchFn = func(ctx *Context) error {
 			}
 			ctx.Conn = NewConn(tls.Server(ctx.Conn, tlsCfg))
 
-			req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.GetTeeReader()))
+			req, err = http.ReadRequest(bufio.NewReader(ctx.Conn.PeekRd))
 			if err != nil {
 				return ctx.TcpHandler.HandleTcp(ctx)
 			}
