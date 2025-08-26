@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/vpxuser/proxy"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"sync"
 )
 
 //func main() {
@@ -89,7 +93,7 @@ func main() {
 	cfg.DefaultSNI = Cfg.SAN
 	cfg.ClientTLSConfig.InsecureSkipVerify = true
 
-	//cfg.Dispatcher = DebugHandler
+	cfg.Dispatcher = tcpForward
 
 	cfg.WithReqMatcher().Handle(func(req *http.Request, ctx *proxy.Context) (*http.Request, *http.Response) {
 		dump, err := httputil.DumpRequest(req, true)
@@ -126,27 +130,29 @@ func main() {
 	}
 }
 
-var DebugHandler proxy.DispatchFn = func(ctx *proxy.Context) error {
+var tcpForward proxy.DispatchFn = func(ctx *proxy.Context) error {
 	return ctx.TcpHandler.HandleTcp(ctx)
+}
 
-	//dstConn, err := net.Dial("tcp", ctx.DstHost+":"+ctx.DstPort)
-	//if err != nil {
-	//	ctx.Error(err)
-	//	return err
-	//}
-	//defer dstConn.Close()
-	//
-	//wg := new(sync.WaitGroup)
-	//cp := func(dst, src net.Conn, str string) {
-	//	defer wg.Done()
-	//	n, err := io.Copy(dst, io.TeeReader(src, os.Stdout))
-	//	ctx.Errorf("%s %d %v", str, n, err)
-	//}
-	//
-	//wg.Add(2)
-	//go cp(dstConn, ctx.Conn, fmt.Sprintf("%s => %s:%s", ctx.Conn.RemoteAddr(), ctx.DstHost, ctx.DstPort))
-	//go cp(ctx.Conn, dstConn, fmt.Sprintf("%s:%s => %s", ctx.DstHost, ctx.DstPort, ctx.Conn.RemoteAddr()))
-	//wg.Wait()
+var ioCopyForward proxy.DispatchFn = func(ctx *proxy.Context) error {
+	dstConn, err := net.Dial("tcp", ctx.DstHost+":"+ctx.DstPort)
+	if err != nil {
+		ctx.Error(err)
+		return err
+	}
+	defer dstConn.Close()
 
-	//return nil
+	wg := new(sync.WaitGroup)
+	cp := func(dst, src net.Conn, str string) {
+		defer wg.Done()
+		n, err := io.Copy(dst, io.TeeReader(src, os.Stdout))
+		ctx.Errorf("%s %d %v", str, n, err)
+	}
+
+	wg.Add(2)
+	go cp(dstConn, ctx.Conn, fmt.Sprintf("%s => %s:%s", ctx.Conn.RemoteAddr(), ctx.DstHost, ctx.DstPort))
+	go cp(ctx.Conn, dstConn, fmt.Sprintf("%s:%s => %s", ctx.DstHost, ctx.DstPort, ctx.Conn.RemoteAddr()))
+	wg.Wait()
+
+	return nil
 }

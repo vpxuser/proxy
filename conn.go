@@ -24,16 +24,21 @@ func (c *Conn) Read(p []byte) (int, error) {
 
 func (c *Conn) Peek(n int) ([]byte, error) {
 	buf := make([]byte, n)
-	copy(buf, c.buf.Bytes())
-
-	if bufLen := c.buf.Len(); n > bufLen {
-		_, err := io.TeeReader(c.Conn, c.buf).Read(buf[bufLen:])
-		if err != nil {
-			return buf, err
+	m := copy(buf, c.buf.Bytes())
+	for m < n {
+		readN, err := c.Conn.Read(buf[m:])
+		if readN > 0 {
+			c.buf.Write(buf[m : m+readN])
+			m += readN
+		}
+		if err != nil || readN == 0 {
+			if err == io.EOF && m > 0 {
+				break
+			}
+			return buf[:m], err
 		}
 	}
-
-	return buf, nil
+	return buf[:m], nil
 }
 
 func (c *Conn) GetTeeReader() io.Reader { return c.teeReader }
@@ -51,8 +56,12 @@ type teeReader struct {
 func (r *teeReader) Read(p []byte) (int, error) {
 	n := copy(p, r.buf.Bytes())
 	if n < len(p) {
-		m, err := io.TeeReader(r.Reader, r.buf).Read(p[n:])
-		return n + m, err
+		m, err := r.Reader.Read(p[n:])
+		if m > 0 {
+			r.buf.Write(p[n : n+m])
+			n += m
+		}
+		return n, err
 	}
 	return n, nil
 }

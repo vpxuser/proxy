@@ -50,8 +50,9 @@ func tcpCopy(wg *sync.WaitGroup, dst, src net.Conn, ctx *Context) {
 	defer wg.Done()
 	cw := &ctxWriter{dst, ctx}
 	_, err := io.Copy(cw, src)
-	if err != nil {
+	if err != nil &&
+		!IsConnReset(err) &&
+		!IsConnAborted(err) {
 		ctx.Error(err)
 	}
-	return
 }

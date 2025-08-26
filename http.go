@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/tls"
 	"errors"
-	"io"
 	"net"
 	"net/http"
 )
@@ -24,7 +23,10 @@ var defaultHttpHandler HandleHttpFn = func(ctx *Context) error {
 	for {
 		req, err := http.ReadRequest(reader)
 		if err != nil {
-			return handleEOF(err, ctx)
+			if !IsEOF(err) {
+				ctx.Error(err)
+			}
+			return err
 		}
 
 		req, resp := ctx.filterReq(req, ctx)
@@ -49,12 +51,18 @@ var defaultHttpHandler HandleHttpFn = func(ctx *Context) error {
 
 			err := req.Write(ctx.DstConn)
 			if err != nil {
-				return handleEOF(err, ctx)
+				if !IsEOF(err) {
+					ctx.Error(err)
+				}
+				return err
 			}
 
 			resp, err = http.ReadResponse(bufio.NewReader(ctx.DstConn), req)
 			if err != nil {
-				return handleEOF(err, ctx)
+				if !IsEOF(err) {
+					ctx.Error(err)
+				}
+				return err
 			}
 		}
 
@@ -64,13 +72,4 @@ var defaultHttpHandler HandleHttpFn = func(ctx *Context) error {
 			return err
 		}
 	}
-}
-
-func handleEOF(err error, cxt *Context) error {
-	if !errors.Is(err, io.EOF) &&
-		!errors.Is(err, io.ErrUnexpectedEOF) {
-		//if !errors.Is(err, io.EOF) {
-		cxt.Error(err)
-	}
-	return err
 }
