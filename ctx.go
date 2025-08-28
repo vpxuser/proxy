@@ -16,6 +16,7 @@ type Context struct {
 	DstPort string
 	DstConn net.Conn
 	Req     *http.Request
+	Extra   any
 }
 
 func NewContext(logger Logger, id string, cfg *Config) *Context {
