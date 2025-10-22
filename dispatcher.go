@@ -38,7 +38,7 @@ var defaultDispatcher DispatchFn = func(ctx *Context) error {
 					serverName = record
 				} else { //通过ClientHello提取SNI
 					rawConn, err := vhost.TLS(ctx.Conn)
-					if err == nil { //解析出错，使用默认设定的SNI
+					if err != nil { //解析出错，使用默认设定的SNI
 						serverName = ctx.DefaultSNI
 						if serverName == "" { //默认SNI为空，无法进行中间人攻击，直接使用TCP直连，放弃中间人攻击
 							return ctx.TcpHandler.HandleTcp(ctx)
