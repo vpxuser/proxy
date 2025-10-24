@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"io"
@@ -46,22 +45,32 @@ func NewConn(inner net.Conn) *Conn {
 	return &Conn{
 		Conn: inner,
 		PeekRd: &PeekReader{
-			rd:    inner,
-			buf:   bytes.NewBuffer(nil),
-			bufRd: bufio.NewReader(inner),
+			rd:  inner,
+			buf: bytes.NewBuffer(nil),
+			//bufRd: bufio.NewReader(inner),
 		},
 	}
 }
 
 type PeekReader struct {
-	rd    io.Reader
-	buf   *bytes.Buffer
-	bufRd *bufio.Reader
+	rd  io.Reader
+	buf *bytes.Buffer
+	//bufRd *bufio.Reader
 }
 
 func (r *PeekReader) Read(p []byte) (int, error) {
-	bytesRd := bytes.NewReader(r.buf.Bytes())
-	teeRd := io.TeeReader(r.rd, r.buf)
-	multiRd := io.MultiReader(bytesRd, teeRd)
-	return multiRd.Read(p)
+	//bytesRd := bytes.NewReader(r.buf.Bytes())
+	//teeRd := io.TeeReader(r.rd, r.buf)
+	//multiRd := io.MultiReader(bytesRd, teeRd)
+	//return multiRd.Read(p)
+	total := copy(p, r.buf.Bytes())
+	if total < len(p) {
+		readN, err := r.rd.Read(p[total:])
+		if readN > 0 {
+			r.buf.Write(p[total : total+readN])
+			total += readN
+		}
+		return total, err
+	}
+	return total, nil
 }
