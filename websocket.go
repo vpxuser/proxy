@@ -81,6 +81,7 @@ var defaultWsHandler HandleWsFn = func(ctx *Context) error {
 	// Start bidirectional frame copy with context cancellation support.
 	// 启动双向帧复制，并支持上下文取消控制。
 	wg := new(sync.WaitGroup)
+	wg.Add(2)
 	go wsCopy(wg, proxyConn, ctx.Conn, ctx)
 	go wsCopy(wg, ctx.Conn, proxyConn, ctx)
 	wg.Wait()
@@ -92,7 +93,6 @@ var defaultWsHandler HandleWsFn = func(ctx *Context) error {
 // wsCopy 从 src 中读取 WebSocket 帧并写入到 dst，
 // 可选地对帧进行过滤。如发生错误将取消上下文。
 func wsCopy(wg *sync.WaitGroup, dst, src net.Conn, ctx *Context) {
-	wg.Add(1)
 	defer wg.Done()
 	for {
 		frame, err := ws.ReadFrame(src)
