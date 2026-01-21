@@ -8,7 +8,7 @@ import (
 
 var Certificate *x509.Certificate
 
-const CertificatePEM = `-----BEGIN CERTIFICATE-----
+const CERTIFICATE_PEM = `-----BEGIN CERTIFICATE-----
 MIIEQTCCAymgAwIBAgIQZmHRZ8nNRRiazj57RAHULDANBgkqhkiG9w0BAQsFADCB
 rjEbMBkGA1UEBhMSWWFraXQgTUlUTSBSb290IENBMRswGQYDVQQIExJZYWtpdCBN
 SVRNIFJvb3QgQ0ExGzAZBgNVBAcTEllha2l0IE1JVE0gUm9vdCBDQTEbMBkGA1UE
@@ -36,7 +36,7 @@ CXK5BSiVz283EHh5sWYB/rCxYEVC38Yx1LycFiwFy0NI/3TMEwbyR7apmv6bZWh1
 
 var PrivateKey *rsa.PrivateKey
 
-const PrivateKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
+const PRIVATE_KEY_PEM = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA02CZJyN+v/oDdjc8KVwhUXdg8S1Qe7CHlMog9FYjXW0Fj9HC
 XePFpHCiOVcRlsOtn1PXHtRh8ImALaa6oS5cirnABwtspe4YzyJ8BvSWiGbzVNKi
 ylPqnoyOQlhkQ4KemySEO08yv79jutGEiANRYCwdxp6nZfbCqZ/FQI4JYy2lh2T4
@@ -65,8 +65,8 @@ DsBnLdZUJ/EIXv9lktWn8SMtFA8stQ8SA2Ddw4+rexTokRfO6t6c
 -----END RSA PRIVATE KEY-----`
 
 func init() {
-	block, _ := pem.Decode([]byte(CertificatePEM))
+	block, _ := pem.Decode([]byte(CERTIFICATE_PEM))
 	Certificate, _ = x509.ParseCertificate(block.Bytes)
-	block, _ = pem.Decode([]byte(PrivateKeyPEM))
+	block, _ = pem.Decode([]byte(PRIVATE_KEY_PEM))
 	PrivateKey, _ = x509.ParsePKCS1PrivateKey(block.Bytes)
 }
