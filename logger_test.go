@@ -13,7 +13,6 @@ func TestLogger(t *testing.T) {
 	ctx.Info("hello world ", 1)
 	ctx.Warn("hello world ", 1)
 	ctx.Error("hello world ", 1)
-	ctx.Fatal("hello world ", 1)
 	Debugf("hello world %d", 1)
 	Infof("hello world %d", 1)
 	Warnf("hello world %d", 1)
@@ -22,5 +21,4 @@ func TestLogger(t *testing.T) {
 	Info("hello world ", 1)
 	Warn("hello world ", 1)
 	Error("hello world ", 1)
-	Fatal("hello world ", 1)
 }

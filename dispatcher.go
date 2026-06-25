@@ -3,9 +3,9 @@ package proxy
 import (
 	"bufio"
 	"crypto/tls"
-	"github.com/gorilla/websocket"
 	"github.com/inconshreveable/go-vhost"
 	"net/http"
+	"strings"
 )
 
 type Dispatcher interface {
@@ -71,11 +71,16 @@ var defaultDispatcher DispatchFn = func(ctx *Context) error {
 
 	//当前中间人只支持http、websocket和tcp
 	switch {
-	case websocket.IsWebSocketUpgrade(req):
+	case isWebSocketUpgrade(req):
 		return ctx.WsHandler.HandleWs(ctx)
 	default:
 		return ctx.HttpHandler.HandleHttp(ctx)
 	}
+}
+
+func isWebSocketUpgrade(r *http.Request) bool {
+	return strings.HasPrefix(strings.ToLower(r.Header.Get("Connection")), "upgrade") &&
+		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }
 
 var isHttp = map[string]struct{}{
@@ -164,7 +169,7 @@ var tproxyDispatch DispatchFn = func(ctx *Context) error {
 
 	//当前中间人只支持http、websocket和tcp
 	switch {
-	case websocket.IsWebSocketUpgrade(req):
+	case isWebSocketUpgrade(req):
 		ctx.Debugf("WS(S) 握手请求消息摘要：%s", req.URL.String())
 		return ctx.WsHandler.HandleWs(ctx)
 	default:

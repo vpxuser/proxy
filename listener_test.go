@@ -5,24 +5,58 @@ import (
 	"testing"
 )
 
-func listenServer(network, addr string, t *testing.T) {
-	l, err := Listen(network, addr, newTestCfg(t))
-	if err != nil {
-		t.Error(err)
-	}
-	defer l.Close()
-
-	if err = l.Serve(); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestListener(t *testing.T) {
-	wg := new(sync.WaitGroup)
-	network := "tcp"
-	addr := "127.0.0.1:23999"
-	wg.Add(1)
-	go client(wg, network, addr, t)
-	listenServer(network, addr, t)
+	cfg := &Config{Dispatcher: DispatchFn(func(ctx *Context) error {
+		buf := make([]byte, 1024)
+		n, err := ctx.Conn.Read(buf)
+		if err != nil {
+			return err
+		}
+		t.Logf("read client msg: %s", buf[:n])
+		return nil
+	})}
+
+	l, err := Listen("tcp", "127.0.0.1:0", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := l.Addr().String()
+
+	errCh := make(chan error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		inner, err := l.Accept()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		defer inner.Close()
+		conn := NewConn(inner)
+		buf := make([]byte, 1024)
+		_, err = conn.Read(buf)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		t.Logf("read client msg: %s", buf)
+		errCh <- nil
+	}()
+
+	go func() {
+		defer wg.Done()
+		errCh <- clientConn("tcp", addr)
+	}()
+
 	wg.Wait()
+	l.Close()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }

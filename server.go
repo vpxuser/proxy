@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// ListenAndServe creates a TCP listener on the given address and starts
+// the proxy loop. It blocks until the listener is closed.
 func ListenAndServe(addr string, cfg *Config) error {
 	inner, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -14,32 +16,14 @@ func ListenAndServe(addr string, cfg *Config) error {
 	return Serve(inner, cfg)
 }
 
+// Serve starts the proxy loop on an existing net.Listener.
+// It blocks until the listener is closed.
 func Serve(ln net.Listener, cfg *Config) error {
 	return NewListener(ln, cfg).Serve()
 }
 
-func (ln *Listener) Serve() error {
-	defer ln.Close()
-	for {
-		id := uuid.New().String()
-		id = strings.ReplaceAll(id, "-", "")
-		ctx := NewContext(ctxLogger, id[:16], ln.cfg)
-		inner, err := ln.Accept()
-		if err != nil {
-			ctx.Error(err)
-			continue
-		}
-		ctx.Conn = NewConn(inner)
-		go func() {
-			defer ctx.Conn.Close()
-			if ctx.Negotiator != nil { //代理协议握手
-				err = ctx.Negotiator.Handshake(ctx)
-				if err != nil {
-					ctx.Error(err)
-					return
-				}
-			}
-			_ = ctx.Dispatcher.Dispatch(ctx)
-		}()
-	}
+// newSessionID generates a short unique session identifier (16 hex chars).
+func newSessionID() string {
+	id := uuid.New().String()
+	return strings.ReplaceAll(id, "-", "")[:16]
 }

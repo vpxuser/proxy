@@ -1,9 +1,10 @@
 package proxy
 
-import (
-	"net/http"
-)
+import "net/http"
 
+// HttpMethods contains the first three bytes of all standard HTTP methods
+// (GET, POST, PUT, HEAD, PATCH, DELETE, CONNECT, OPTIONS, TRACE).
+// It is used by the dispatcher to quickly identify HTTP traffic.
 var HttpMethods = map[string]struct{}{
 	http.MethodGet[:3]:     {},
 	http.MethodHead[:3]:    {},

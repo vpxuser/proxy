@@ -1,6 +1,9 @@
 # Proxy Go Package
 # Proxy Go 包说明
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/vpxuser/proxy)](https://pkg.go.dev/github.com/vpxuser/proxy)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/vpxuser/proxy)](https://github.com/vpxuser/proxy)
+
 `proxy` is a Go package designed to create a man-in-the-middle (MITM) proxy tool for intercepting, modifying, and forwarding traffic over multiple protocols including HTTP, HTTPS, TLS, WebSocket, and TCP. This package is ideal for security testing, traffic analysis, and protocol research.  
 `proxy` 是一个用于构建中间人攻击（MITM）代理工具的 Go 包，支持拦截、修改和转发多种协议的流量，包括 HTTP、HTTPS、TLS、WebSocket 和 TCP。该包非常适合用于安全测试、流量分析和协议研究。
 
