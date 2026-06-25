@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "go build ./...",
+      "go test ./... -v -count=1",
+      "go vet ./..."
+    ]
+  }
+}
