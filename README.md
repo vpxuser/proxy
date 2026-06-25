@@ -11,7 +11,7 @@ A Go package for building man-in-the-middle (MITM) proxy tools. Intercept, modif
 - **WebSocket MITM** — Frame-level interception and modification
 - **TCP MITM** — Raw TCP traffic forwarding with optional modification
 - **SOCKS5** — RFC 1928 compliant SOCKS5 CONNECT handshake
-- **Transparent proxy** — Protocol-aware dispatch without explicit client configuration
+- **Transparent proxy** — Protocol-aware dispatch without explicit client configuration (internal, see `tproxyDispatch` in dispatcher.go)
 - **Matcher chain** — Fluent API for conditional request/response/WS/TCP handling
 - **Concurrency limiter** — Optional goroutine budget per proxy session
 - **Upstream proxy** — Chainable via HTTP CONNECT or SOCKS5 upstream
@@ -110,14 +110,6 @@ import "golang.org/x/net/proxy"
 
 dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:10808", nil, nil)
 cfg.Dialer = dialer
-```
-
-### Transparent Proxy Mode
-
-Works with tools like Proxifier or iptables.
-
-```go
-cfg.Dispatcher = proxy.TransparentDispatch
 ```
 
 ## How It Works

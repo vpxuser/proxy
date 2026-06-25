@@ -11,7 +11,7 @@
 - **WebSocket 中间人** — 帧级 WebSocket 消息拦截与修改
 - **TCP 中间人** — 原始 TCP 流量转发与修改
 - **SOCKS5** — 符合 RFC 1928 的 SOCKS5 CONNECT 握手
-- **透明代理** — 无需客户端配置，协议感知分发（配合 Proxifier / iptables）
+- **透明代理** — 无需客户端配置，协议感知分发（配合 Proxifier / iptables，详见 `tproxyDispatch`）
 - **匹配器链** — 链式 API，按条件过滤请求/响应/WS/TCP
 - **并发限速** — 可选 goroutine 配额控制
 - **上游代理** — 支持 HTTP CONNECT / SOCKS5 上游链式代理
@@ -110,14 +110,6 @@ import "golang.org/x/net/proxy"
 
 dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:10808", nil, nil)
 cfg.Dialer = dialer
-```
-
-### 透明代理模式
-
-配合 Proxifier 或 iptables 使用：
-
-```go
-cfg.Dispatcher = proxy.TransparentDispatch
 ```
 
 ## 工作原理

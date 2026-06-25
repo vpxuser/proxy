@@ -52,7 +52,7 @@ Adapter convention: `type XxxFn func(*Context) error`
 - **Errors**: wrap with `errors.Is`/`fmt.Errorf`, return up the chain
 - **Config**: functional Options pattern (`WithReqMatcher`, `WithRespMatcher`, etc.)
 - **Context**: `*Context` embeds `*Config`, all components access config through it
-- **Two dispatchers**: `defaultDispatcher` (standard proxy) and `TransparentDispatch` (transparent proxy, exported) — protocol detection logic is shared but evolves independently
+- **Two dispatchers**: `defaultDispatcher` (standard proxy) and `tproxyDispatch` (transparent proxy, unexported) — protocol detection logic is shared but evolves independently
 
 ## Traps
 
