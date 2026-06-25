@@ -3,6 +3,8 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/vpxuser/proxy)](https://pkg.go.dev/github.com/vpxuser/proxy)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/vpxuser/proxy)](https://github.com/vpxuser/proxy)
 
+> **中文文档请查看 [README.zh-CN.md](./README.zh-CN.md)**
+
 A Go package for building man-in-the-middle (MITM) proxy tools. Intercept, modify, and forward traffic over HTTP, HTTPS, TLS, WebSocket, and TCP. Suitable for security testing, traffic analysis, and protocol research.
 
 ## Features
