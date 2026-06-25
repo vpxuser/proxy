@@ -96,7 +96,11 @@ var isHttp = map[string]struct{}{
 }
 
 // 基于透传模式下进行调度
-var tproxyDispatch DispatchFn = func(ctx *Context) error {
+// TransparentDispatch is a Dispatcher for transparent proxy mode (e.g. with Proxifier or iptables).
+// It detects protocol by peeking at the initial bytes without requiring explicit client proxy configuration.
+// TransparentDispatch 是透明代理模式的调度器（配合 Proxifier 或 iptables 使用），
+// 通过 peek 首字节识别协议，无需客户端显式配置代理。
+var TransparentDispatch DispatchFn = func(ctx *Context) error {
 	ctx.Debugf("进入 Dispatcher 处理流程")
 
 	//识别TCP流数据是否为http
